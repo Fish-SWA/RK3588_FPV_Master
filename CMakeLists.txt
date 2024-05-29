@@ -1,12 +1,12 @@
-# cmake ×îµÍ°æ±¾ĞèÇó
+# cmake æœ€ä½ç‰ˆæœ¬éœ€æ±‚
 cmake_minimum_required(VERSION 3.13)
 
-# ¹¤³ÌÃû³Æ
+# å·¥ç¨‹åç§°
 project(Fpv_master)
 
-# ÉèÖÃ
+# è®¾ç½®
 set(CMAKE_CXX_STANDARD 11)
 include_directories(${PROJECT_SOURCE_DIR}/core/inc)
 
-# ±àÒëÔ´ÂëÉú³ÉÄ¿±ê
-add_executable(Fpv_master core/src/main.cpp)
+# ç¼–è¯‘æºç ç”Ÿæˆç›®æ ‡
+add_executable(Fpv_master core/src/main.cpp core/src/usart.cpp)
