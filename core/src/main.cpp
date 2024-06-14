@@ -1,25 +1,29 @@
-#include <iostream>
 #include "main.hpp"
-#include "usart.hpp"
-#include <thread>
+#include "vision.hpp"
 
-using namespace std;
-char readbuffer[10];
+//OpenCV
+#include "opencv2/opencv.hpp"
 
-Usart usart0("/dev/ttyACM0", 115200);
+using namespace cv;
+
+BinoCamera BinoPair(0, 2, 140); //双目摄像头对象
+
+Mat frame;
 
 int main()
 {
-    std::cout << usart0.device_name << std::endl;
+    BinoPair.open();    //开启摄像头
+
+    namedWindow("cam_l", WINDOW_AUTOSIZE);
+    
     while(1) 
     {
-        usart0.serialPrintf("naive!");
-        //usart0.serialPrintf("%f\n", 114.514);
-        std::this_thread::sleep_for(std::chrono::milliseconds(100));
-        std::cout << usart0.serialDataReady() <<std::endl;
-        if(usart0.serialDataReady() > 0){
-            std::cout << usart0.serialGetChar() << std::endl;
-        }
+        BinoPair.Cam_L.read(frame);
+        cvtColor(frame, frame, COLOR_RGB2GRAY);
+        threshold(frame, frame, 120, 255, THRESH_BINARY);
+        imshow("cam_l", frame);
+
+        if(waitKey(1) == 'q') break;
     }
     return 0;
 }
