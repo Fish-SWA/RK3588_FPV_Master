@@ -14,16 +14,16 @@ int main()
 {
     BinoPair.open();    //开启摄像头
 
-    namedWindow("cam_l", WINDOW_AUTOSIZE);
+    BinoPair.monitor_task();
     
-    while(1) 
-    {
-        BinoPair.Cam_L.read(frame);
-        cvtColor(frame, frame, COLOR_RGB2GRAY);
-        threshold(frame, frame, 120, 255, THRESH_BINARY);
-        imshow("cam_l", frame);
+    // while(1) 
+    // {
+    //     BinoPair.Cam_L.read(frame);
+    //     cvtColor(frame, frame, COLOR_RGB2GRAY);
+    //     threshold(frame, frame, 120, 255, THRESH_BINARY);
+    //     imshow("cam_l", frame);
 
-        if(waitKey(1) == 'q') break;
-    }
+    //     if(waitKey(1) == 'q') break;
+    // }
     return 0;
 }
