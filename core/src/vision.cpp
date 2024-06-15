@@ -55,9 +55,9 @@ int BinoCamera::monitor_task()
         
         /*过滤颜色&二值化*/
         cv::cvtColor(Frame_raw_R, frame_binary, cv::COLOR_RGB2HSV);
-        // cv::circle(Frame_raw_R, cv::Point(CAM_FRAME_WIDTH/2, CAM_FRAME_HEIGHT/2), 10, cv::Scalar(255,0,0));
-        // std::cout << Frame_raw_R.at<cv::Vec3b>(CAM_FRAME_HEIGHT/2, CAM_FRAME_WIDTH/2) << std::endl;
-        cv::inRange(frame_binary, cv::Scalar(85, 30, 250),
+        cv::circle(Frame_raw_R, cv::Point(CAM_FRAME_WIDTH/2, CAM_FRAME_HEIGHT/2), 10, cv::Scalar(255,0,0));
+        std::cout << Frame_raw_R.at<cv::Vec3b>(CAM_FRAME_HEIGHT/2, CAM_FRAME_WIDTH/2) << std::endl;
+        cv::inRange(frame_binary, cv::Scalar(85, 100, 210),
                                 cv::Scalar(110, 180, 255), frame_binary);
         cv::medianBlur(frame_binary, frame_binary, 3);
         cv::threshold(frame_binary, frame_binary, 120, 255, cv::THRESH_BINARY);
