@@ -16,18 +16,23 @@ private:
     /*过滤乒乓球颜色的阈值  (H, S, V)*/
     cv::Scalar Filter_HSV_LOW = cv::Scalar(70, 100, 210);    //(70, 100, 210);
     cv::Scalar Filter_HSV_HIGH = cv::Scalar(170, 256, 256);  //(170, 255, 255);
+
     int Filter_Debug = 0;
+    int Thread_monitor = 0; //1监看放到独立线程（可能导致监看卡顿）， 0监看与识别在一个线程
     
  
     /*摄像机参数*/
-    int CAM_FRAME_HEIGHT = 480;
-    int CAM_FRAME_WIDTH = 640;
+    int CAM_FRAME_HEIGHT = 640;
+    int CAM_FRAME_WIDTH = 480;
     int CAM_FRAME_FPS = 60;
     int CAM_BRIGHTNESS = 10;
 
     /*画面帧*/
     cv::UMat Frame_raw_L;
     cv::UMat Frame_raw_R;
+
+    /*工具函数*/
+    void monitor_frame(cv::String windows_name, cv::UMat& frame);    //监控线程
 
     /*图像识别函数*/
     //识别乒乓球

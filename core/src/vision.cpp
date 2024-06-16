@@ -1,5 +1,6 @@
 #include "vision.hpp"
 #include "main.hpp"
+#include <thread>
 
 
 void BinoCamera::init(int cam_l_in, int cam_r_in, int cam_dist_in)
@@ -102,16 +103,29 @@ int BinoCamera::detect_balls(cv::InputArray frame_in, cv::InputOutputArray frame
 
 int BinoCamera::monitor_task()
 {
+    if(!Thread_monitor){
     namedWindow("Cam_L", cv::WINDOW_AUTOSIZE);  //左摄像头窗口
     namedWindow("Cam_R", cv::WINDOW_AUTOSIZE);  //右摄像头窗口
-    // namedWindow("Cam_R_bi", cv::WINDOW_AUTOSIZE);
+    }
 
-    cv::Mat frame_binary[2];
+    cv::UMat frame_binary[2];
     cv::UMat frame_labeled[2];
     std::vector<cv::Point> balls[2];
     uint32_t time_p1, time_p2, time_p3, time_p4, time_p5;
 
     if(Filter_Debug) Filter_debug_task();   //Debug模式时进入调参任务
+
+    /*读取帧*/
+    Cam_L.read(frame_labeled[0]);
+    Cam_R.read(frame_labeled[1]);
+
+
+    /*启动监视窗口*/
+    std::thread Cam_L_view(std::bind(&BinoCamera::monitor_frame, this, 
+                            "Cam_L", frame_labeled[0]));
+    std::thread Cam_R_view(std::bind(&BinoCamera::monitor_frame, this, 
+                            "Cam_R", frame_labeled[1]));
+                            
 
     while(1)
     {
@@ -130,13 +144,17 @@ int BinoCamera::monitor_task()
         time_p3 = get_time();
 
         /*显示*/
+        if(!Thread_monitor){
         cv::imshow("Cam_L", frame_labeled[0]);
         cv::imshow("Cam_R", frame_labeled[1]);
-        // cv::imshow("Cam_R_bi", frame_binary[1]);
+        }
 
         time_p4 = get_time();
 
+        if(!Thread_monitor){
         if(cv::waitKey(1) == 'q') break;
+        }
+
         time_p5 = get_time();
 
         if(balls[0].size() > 0 && balls[1].size() > 0){
@@ -161,6 +179,20 @@ std::chrono::time_point<std::chrono::system_clock, std::chrono::milliseconds>
       tp = std::chrono::time_point_cast<std::chrono::milliseconds>(
           std::chrono::system_clock::now());
     return tp.time_since_epoch().count();
+}
+
+void BinoCamera::monitor_frame(cv::String windows_name, cv::UMat& frame)
+{
+    if(!Thread_monitor) return; //不处于线程监看模式直接推出
+
+    namedWindow(windows_name, cv::WINDOW_AUTOSIZE);
+
+    while(1)
+    {
+        cv::imshow(windows_name, frame);
+        if(cv::waitKey(10) == 'q') break;
+    }
+
 }
 
 int BinoCamera::Filter_debug_task()
