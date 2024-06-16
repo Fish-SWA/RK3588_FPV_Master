@@ -46,14 +46,15 @@ int BinoCamera::detect_balls(cv::InputArray frame_in, cv::InputOutputArray frame
 
     /*inRange() 使用UMat会异常，因此加上中间变量Mat*/
     cv::Mat binary_Mat;
+    cv::UMat frame_processing;
 
     /*转换为HSV色彩*/
-    frame_in.copyTo(frame_labled);
+    frame_in.copyTo(frame_processing);
     cv::cvtColor(frame_in, binary_Mat, cv::COLOR_RGB2HSV);
 
     /*Debug: 输出中心点的HVS值, 用来调过滤器阈值*/
     if(Filter_Debug){
-        cv::circle(frame_labled, cv::Point(CAM_FRAME_WIDTH/2, CAM_FRAME_HEIGHT/2), 
+        cv::circle(frame_processing, cv::Point(CAM_FRAME_WIDTH/2, CAM_FRAME_HEIGHT/2), 
                                                         10, cv::Scalar(255,0,0));
         std::cout << Frame_raw_R.getMat(cv::ACCESS_READ).at<cv::Vec3b>(CAM_FRAME_HEIGHT/2, CAM_FRAME_WIDTH/2) 
                                                                     << std::endl;
@@ -83,10 +84,10 @@ int BinoCamera::detect_balls(cv::InputArray frame_in, cv::InputOutputArray frame
         {
             cv::Scalar color = cv::Scalar(255, 0, 0);
             /*画出轮廓&标记框&圆心*/
-            drawContours(frame_labled, country, (int)i, color, 2, cv::LINE_8, hiera, 0);
+            drawContours(frame_processing, country, (int)i, color, 2, cv::LINE_8, hiera, 0);
             bound_box = cv::boundingRect(country[i]);
-            cv::rectangle(frame_labled, bound_box.tl(), bound_box.br(), cv::Scalar(0, 255, 0), 2);
-            cv::circle(frame_labled, cv::Point(bound_box.x+bound_box.width/2, 
+            cv::rectangle(frame_processing, bound_box.tl(), bound_box.br(), cv::Scalar(0, 255, 0), 2);
+            cv::circle(frame_processing, cv::Point(bound_box.x+bound_box.width/2, 
                                                 bound_box.y+bound_box.height/2), 2, 
                                                 cv::Scalar(0, 0, 255), 2);
             /*输出圆心数据*/
@@ -95,6 +96,7 @@ int BinoCamera::detect_balls(cv::InputArray frame_in, cv::InputOutputArray frame
             // printf("center:%d, %d\n", bound_box.x+bound_box.width/2, bound_box.y+bound_box.height/2);
         }
     }
+    frame_processing.copyTo(frame_labled);
 
 
     return 0;
