@@ -1,5 +1,8 @@
 #include "opencv2/opencv.hpp"
 
+//OpenCV
+#include "opencv2/core/ocl.hpp"
+
 class BinoCamera
 {
 private:
@@ -11,11 +14,11 @@ private:
     float circle_ratio = 4*3.14; //圆(周长平方/面积)的比值
     float circle_tolorance = 0.8; //判定圆允许的误差
     /*过滤乒乓球颜色的阈值  (H, S, V)*/
-    cv::Scalar Filter_HSV_LOW = cv::Scalar(70, 100, 210);
-    cv::Scalar Filter_HSV_HIGH = cv::Scalar(170, 255, 255);
+    cv::Scalar Filter_HSV_LOW = cv::Scalar(70, 100, 210);    //(70, 100, 210);
+    cv::Scalar Filter_HSV_HIGH = cv::Scalar(170, 256, 256);  //(170, 255, 255);
     int Filter_Debug = 0;
     
-
+ 
     /*摄像机参数*/
     int CAM_FRAME_HEIGHT = 480;
     int CAM_FRAME_WIDTH = 640;
@@ -23,15 +26,14 @@ private:
     int CAM_BRIGHTNESS = 10;
 
     /*画面帧*/
-    cv::Mat Frame_raw_L;
-    cv::Mat Frame_raw_R;
+    cv::UMat Frame_raw_L;
+    cv::UMat Frame_raw_R;
 
     /*图像识别函数*/
-    int hough_circles(cv::Mat frame_input);    //用霍夫变换识别圆
     //识别乒乓球
     int detect_balls(cv::InputArray frame_in, cv::InputOutputArray frame_labled,
                         cv::OutputArray frame_binary, std::vector<cv::Point> &balls_detected);
-    
+    uint32_t get_time();        //获取毫秒时间 
 public:
     cv::VideoCapture Cam_L; //左摄像头对象
     cv::VideoCapture Cam_R; //右摄像头对象
@@ -39,6 +41,7 @@ public:
     int open();     //打开相机
     int monitor_window();   //打开相机的监视窗口
     int monitor_task();     //相机监视窗口的维护线程
+    int Filter_debug_task();
 
 
 

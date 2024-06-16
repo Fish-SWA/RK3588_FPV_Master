@@ -16,7 +16,8 @@ int BinoCamera::open()
     Cam_R.open(cam_r_id, cv::CAP_V4L2);
     /*等待摄像头就绪*/
     while((!Cam_L.isOpened()) | (!Cam_R.isOpened())){
-        printf("waitting camera....\n");
+        printf("waitting camera....(L:%d, R:%d)\n",
+                        Cam_L.isOpened(), Cam_R.isOpened());
         Sleep_ms(100);
     }
     /*设置相机参数*/
@@ -42,20 +43,23 @@ int BinoCamera::detect_balls(cv::InputArray frame_in, cv::InputOutputArray frame
     std::vector<cv::Vec4i> hiera;
     cv::Rect bound_box;
 
+    /*inRange() 使用UMat会异常，因此加上中间变量Mat*/
+    cv::Mat binary_Mat;
+
     /*转换为HSV色彩*/
     frame_in.copyTo(frame_labled);
-    cv::cvtColor(frame_in, frame_binary, cv::COLOR_RGB2HSV);
+    cv::cvtColor(frame_in, binary_Mat, cv::COLOR_RGB2HSV);
 
     /*Debug: 输出中心点的HVS值, 用来调过滤器阈值*/
     if(Filter_Debug){
         cv::circle(frame_labled, cv::Point(CAM_FRAME_WIDTH/2, CAM_FRAME_HEIGHT/2), 
                                                         10, cv::Scalar(255,0,0));
-        std::cout << Frame_raw_R.at<cv::Vec3b>(CAM_FRAME_HEIGHT/2, CAM_FRAME_WIDTH/2) 
+        std::cout << Frame_raw_R.getMat(cv::ACCESS_READ).at<cv::Vec3b>(CAM_FRAME_HEIGHT/2, CAM_FRAME_WIDTH/2) 
                                                                     << std::endl;
     }
     
     /*过滤&二值化*/
-    cv::inRange(frame_binary, Filter_HSV_LOW,
+    cv::inRange(binary_Mat, Filter_HSV_LOW,
                             Filter_HSV_HIGH, frame_binary);
     cv::medianBlur(frame_binary, frame_binary, 3);
     cv::threshold(frame_binary, frame_binary, 120, 255, cv::THRESH_BINARY);
@@ -100,36 +104,84 @@ int BinoCamera::monitor_task()
 {
     namedWindow("Cam_L", cv::WINDOW_AUTOSIZE);  //左摄像头窗口
     namedWindow("Cam_R", cv::WINDOW_AUTOSIZE);  //右摄像头窗口
+    // namedWindow("Cam_R_bi", cv::WINDOW_AUTOSIZE);
 
     cv::Mat frame_binary[2];
-    cv::Mat frame_labeled[2];
+    cv::UMat frame_labeled[2];
     std::vector<cv::Point> balls[2];
+    uint32_t time_p1, time_p2, time_p3, time_p4, time_p5;
 
+    if(Filter_Debug) Filter_debug_task();   //Debug模式时进入调参任务
 
     while(1)
     {
+        time_p1 = get_time();
+
+        /*读取帧*/
         Cam_L.read(Frame_raw_L);
         Cam_R.read(Frame_raw_R);
 
-        /*画面处理，暂时*/
+        time_p2 = get_time();
+
+        /*识别*/
         detect_balls(Frame_raw_L, frame_labeled[0], frame_binary[0], balls[0]);
         detect_balls(Frame_raw_R, frame_labeled[1], frame_binary[1], balls[1]);
-        if(balls[0].size() > 0 && balls[1].size() > 0){
-            printf("centerL: %d, %d\t", balls[0][0].x, balls[0][0].y);
-            printf("centerR: %d, %d\n", balls[1][0].x, balls[1][0].y);
-        }
 
+        time_p3 = get_time();
+
+        /*显示*/
         cv::imshow("Cam_L", frame_labeled[0]);
         cv::imshow("Cam_R", frame_labeled[1]);
+        // cv::imshow("Cam_R_bi", frame_binary[1]);
+
+        time_p4 = get_time();
+
         if(cv::waitKey(1) == 'q') break;
+        time_p5 = get_time();
+
+        if(balls[0].size() > 0 && balls[1].size() > 0){
+            printf("centerL: %d, %d\t", balls[0][0].x, balls[0][0].y);
+            printf("centerR: %d, %d\t", balls[1][0].x, balls[1][0].y);
+            printf("time_use:%dms + %dms + %dms -> %dms | %dms\n", 
+                            time_p2 - time_p1,      //读取读取帧耗时
+                            time_p3 - time_p2,      //识别耗时
+                            time_p4 - time_p3,      //显示耗时
+                            time_p4 - time_p1,      //总耗时
+                            time_p5 - time_p4);     //waitkey等待时间
+        }
+
 
     }
     return 0;
 }
 
-int BinoCamera::hough_circles(cv::Mat frame_input)
+uint32_t BinoCamera::get_time()
 {
-    cv::Mat frame;
+std::chrono::time_point<std::chrono::system_clock, std::chrono::milliseconds>
+      tp = std::chrono::time_point_cast<std::chrono::milliseconds>(
+          std::chrono::system_clock::now());
+    return tp.time_since_epoch().count();
+}
+
+int BinoCamera::Filter_debug_task()
+{
+    namedWindow("Cam_R", cv::WINDOW_AUTOSIZE);  //左摄像头窗口
+    namedWindow("Cam_R_binary", cv::WINDOW_AUTOSIZE);  //右摄像头窗口
+
+    cv::Mat frame_binary;
+    cv::UMat frame_labeled;
+    std::vector<cv::Point> balls;
+
+    while(1)
+    {
+        Cam_R.read(Frame_raw_R);
+        detect_balls(Frame_raw_R, frame_labeled, frame_binary, balls);
+
+        cv::imshow("Cam_R", frame_labeled);
+        cv::imshow("Cam_R_binary", frame_binary);
+
+        if(cv::waitKey(1) == 'q') break;
+    }
     return 0;
 }
 

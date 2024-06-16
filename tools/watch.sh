@@ -1,0 +1,1 @@
+watch -n1 sudo bash system_status.sh
