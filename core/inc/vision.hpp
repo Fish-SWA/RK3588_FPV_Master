@@ -14,11 +14,11 @@ private:
     float circle_ratio = 4*3.14; //圆(周长平方/面积)的比值
     float circle_tolorance = 0.8; //判定圆允许的误差
     /*过滤乒乓球颜色的阈值  (H, S, V)*/
-    cv::Scalar Filter_HSV_LOW = cv::Scalar(70, 100, 210);    //(70, 100, 210);
-    cv::Scalar Filter_HSV_HIGH = cv::Scalar(170, 256, 256);  //(170, 255, 255);
+    cv::Scalar Filter_HSV_LOW = cv::Scalar(85, 55, 245);    //(70, 100, 210);
+    cv::Scalar Filter_HSV_HIGH = cv::Scalar(110, 190, 255);  //(170, 255, 255);
 
-    int Filter_Debug = 0;
-    int Thread_monitor = 1; //1监看放到独立线程（可能导致监看卡顿）， 0监看与识别在一个线程
+    int Filter_Debug = 1;
+    int Thread_monitor = 0; //1监看放到独立线程（可能导致监看卡顿）， 0监看与识别在一个线程
     
  
     /*摄像机参数*/

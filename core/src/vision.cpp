@@ -54,9 +54,9 @@ int BinoCamera::detect_balls(cv::InputArray frame_in, cv::InputOutputArray frame
 
     /*Debug: 输出中心点的HVS值, 用来调过滤器阈值*/
     if(Filter_Debug){
-        cv::circle(frame_processing, cv::Point(CAM_FRAME_WIDTH/2, CAM_FRAME_HEIGHT/2), 
+        cv::circle(frame_processing, cv::Point(CAM_FRAME_HEIGHT/2, CAM_FRAME_WIDTH/2), 
                                                         10, cv::Scalar(255,0,0));
-        std::cout << Frame_raw_R.getMat(cv::ACCESS_READ).at<cv::Vec3b>(CAM_FRAME_HEIGHT/2, CAM_FRAME_WIDTH/2) 
+        std::cout << binary_Mat.at<cv::Vec3b>(CAM_FRAME_WIDTH/2, CAM_FRAME_HEIGHT/2) 
                                                                     << std::endl;
     }
     
@@ -80,7 +80,7 @@ int BinoCamera::detect_balls(cv::InputArray frame_in, cv::InputOutputArray frame
         area = cv::contourArea(country[i]);
         length = cv::arcLength(country[i], true);
         /*当符合乒乓球轮廓的条件时*/
-        if(area > 100 && abs(length*length/area - circle_ratio) < circle_ratio*0.9)
+        if(area > 100 && abs(length*length/area - circle_ratio) < circle_ratio*circle_tolorance)
         {
             cv::Scalar color = cv::Scalar(255, 0, 0);
             /*画出轮廓&标记框&圆心*/
