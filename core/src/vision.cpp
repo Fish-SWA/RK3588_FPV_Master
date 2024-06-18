@@ -2,6 +2,8 @@
 #include "main.hpp"
 #include <thread>
 
+std::mutex img_lock; 
+
 
 void BinoCamera::init(int cam_l_in, int cam_r_in, int cam_dist_in)
 {
@@ -26,13 +28,15 @@ int BinoCamera::open()
     Cam_L.set(cv::CAP_PROP_FPS, CAM_FRAME_FPS);
     Cam_L.set(cv::CAP_PROP_FRAME_HEIGHT, CAM_FRAME_HEIGHT);
     Cam_L.set(cv::CAP_PROP_FRAME_WIDTH, CAM_FRAME_WIDTH);
-    Cam_L.set(cv::CAP_PROP_BRIGHTNESS, CAM_BRIGHTNESS);
+    Cam_L.set(cv::CAP_PROP_BRIGHTNESS, CAM_BRIGHTNESS-5);
+    Cam_L.set(cv::CAP_PROP_TEMPERATURE, 7000);
 
     Cam_R.set(cv::CAP_PROP_FOURCC ,cv::VideoWriter::fourcc('M', 'J', 'P', 'G') );
     Cam_R.set(cv::CAP_PROP_FPS, CAM_FRAME_FPS);
     Cam_R.set(cv::CAP_PROP_FRAME_HEIGHT, CAM_FRAME_HEIGHT);
     Cam_R.set(cv::CAP_PROP_FRAME_WIDTH, CAM_FRAME_WIDTH);
     Cam_R.set(cv::CAP_PROP_BRIGHTNESS, CAM_BRIGHTNESS);
+    Cam_R.set(cv::CAP_PROP_TEMPERATURE, 7000);
     
     return 0;
 }
@@ -79,10 +83,12 @@ int BinoCamera::detect_balls(cv::InputArray frame_in, cv::InputOutputArray frame
         float area, length; 
         area = cv::contourArea(country[i]);
         length = cv::arcLength(country[i], true);
+        cv::Scalar color = cv::Scalar(127, 127, 127);
+        drawContours(frame_processing, country, (int)i, color, 2, cv::LINE_8, hiera, 0);
         /*当符合乒乓球轮廓的条件时*/
-        if(area > 100 && abs(length*length/area - circle_ratio) < circle_ratio*circle_tolorance)
+        if(area > 20 && abs(length*length/area - circle_ratio) < circle_ratio*circle_tolorance)
         {
-            cv::Scalar color = cv::Scalar(255, 0, 0);
+            color = cv::Scalar(255, 0, 0);
             /*画出轮廓&标记框&圆心*/
             drawContours(frame_processing, country, (int)i, color, 2, cv::LINE_8, hiera, 0);
             bound_box = cv::boundingRect(country[i]);
@@ -112,21 +118,22 @@ int BinoCamera::monitor_task()
 
     cv::UMat frame_binary[2];
     cv::UMat frame_labeled[2];
+    cv::UMat frame_show[2];
     std::vector<cv::Point> balls[2];
     uint32_t time_p1, time_p2, time_p3, time_p4, time_p5;
 
     if(Filter_Debug) Filter_debug_task();   //Debug模式时进入调参任务
 
     /*读取帧*/
-    Cam_L.read(frame_labeled[0]);
-    Cam_R.read(frame_labeled[1]);
+    Cam_L.read(frame_show[0]);
+    Cam_R.read(frame_show[1]);
 
 
     /*启动监视窗口*/
     std::thread Cam_L_view(std::bind(&BinoCamera::monitor_frame, this, 
-                            "Cam_L", frame_labeled[0]));
+                            "Cam_L", frame_show[0]));
     std::thread Cam_R_view(std::bind(&BinoCamera::monitor_frame, this, 
-                            "Cam_R", frame_labeled[1]));
+                            "Cam_R", frame_show[1]));
                             
 
     while(1)
@@ -144,6 +151,11 @@ int BinoCamera::monitor_task()
         detect_balls(Frame_raw_R, frame_labeled[1], frame_binary[1], balls[1]);
 
         time_p3 = get_time();
+
+        img_lock.lock();
+        frame_labeled[0].copyTo(frame_show[0]);
+        frame_labeled[1].copyTo(frame_show[1]);
+        img_lock.unlock();
 
         /*显示*/
         if(!Thread_monitor){
@@ -191,11 +203,41 @@ void BinoCamera::monitor_frame(cv::String windows_name, cv::UMat& frame)
 
     while(1)
     {
+        img_lock.lock();
+        img_lock.unlock();
+        
         cv::imshow(windows_name, frame);
-        if(cv::waitKey(10) == 'q') break;
+
+        if(cv::waitKey(1) == 'q') break;
     }
 
 }
+
+
+// /*参考*/
+// void fastLoopCode(Mat& frameCV) {
+
+//         //mutex mtx;   //try it in here
+
+//         //initialize your camera etc.
+
+//         Frame *frame;      //direct data from camera...
+
+//         while(1){
+//                 frame = camera->GetLatestFrame();      
+
+//                 if(frame){                                     
+
+//                         mtx.lock();
+//                         //whatever code required to turn the camera data into an openCV Mat
+//                         mtx.unlock();
+
+//                         frame->Release();
+//                 }
+//         }
+//         camera->Release();
+// }
+
 
 int BinoCamera::Filter_debug_task()
 {
@@ -208,8 +250,8 @@ int BinoCamera::Filter_debug_task()
 
     while(1)
     {
-        Cam_R.read(Frame_raw_R);
-        detect_balls(Frame_raw_R, frame_labeled, frame_binary, balls);
+        Cam_L.read(Frame_raw_L);
+        detect_balls(Frame_raw_L, frame_labeled, frame_binary, balls);
 
         cv::imshow("Cam_R", frame_labeled);
         cv::imshow("Cam_R_binary", frame_binary);
