@@ -37,7 +37,6 @@ private:
 
 
     /* 内部参数 */
-    int error_ret;
     rknn_context ctx;
     size_t actual_size = 0;
     int img_width = 0;
@@ -46,13 +45,17 @@ private:
     const float nms_threshold = NMS_THRESH;      // 默认的NMS阈值
     const float box_conf_threshold = BOX_THRESH; // 默认的置信度阈值
     struct timeval start_time, stop_time;
-    char *model_name = "/home/fish/GKD/RK3588_FPV_Master/model/yolov5s-640-640.rknn";
-    char *input_path = "/home/fish/Downloads/rknpu2/examples/rknn_yolov5_demo/model/bus.jpg";
 
     /* 内部工具函数 */
     double __get_us(struct timeval t) { return (t.tv_sec * 1000000 + t.tv_usec); }
 
 public:
+
+    char *model_path;                //模型文件路径
+    char *label_name_txt_path;       //标签文件路径
+    int error_ret;                   //错误信息
+
+
     unsigned char *load_data(FILE *fp, size_t ofst, size_t sz);
     unsigned char *load_model(char *filename, int *model_size);
     void dump_tensor_attr(rknn_tensor_attr *attr);
@@ -61,9 +64,6 @@ public:
     int yolo_draw_results(cv::Mat frame_in, cv::Mat& frame_labbed,
                                  _detect_result_group_t *results);     //画出识别结果
     int yolo_print_results(_detect_result_group_t *results);     //打印出识别结果
-
-    int debug_main(); 
-
 
     RkNPU(/* args */);
     ~RkNPU();

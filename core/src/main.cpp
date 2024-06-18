@@ -16,8 +16,44 @@ int main()
 {
     Opencl_init();  //初始化OpenCL
 
-    Rkyolo.debug_main();
+    //模型路径
+    Rkyolo.model_path = "/home/fish/GKD/RK3588_FPV_Master/model/yolov5s-640-640.rknn";
+    //标签列表路径
+    Rkyolo.label_name_txt_path = "/home/fish/GKD/RK3588_FPV_Master/model/coco_80_labels_list.txt";
 
+    Rkyolo.rknn_model_init();  //初始化RKNN模型
+
+    cv::VideoCapture Cam;
+    cv::Mat frame_cam;
+
+    Cam.open(0, cv::CAP_V4L2);
+
+    Cam.set(cv::CAP_PROP_FOURCC ,cv::VideoWriter::fourcc('M', 'J', 'P', 'G') );
+    Cam.set(cv::CAP_PROP_FPS, 60);
+    Cam.set(cv::CAP_PROP_FRAME_HEIGHT, 480);
+    Cam.set(cv::CAP_PROP_FRAME_WIDTH, 640);
+    Cam.set(cv::CAP_PROP_BRIGHTNESS, 10);
+    Cam.set(cv::CAP_PROP_TEMPERATURE, 7000);
+
+    cv::namedWindow("yolo_cam", cv::WINDOW_AUTOSIZE);
+
+  while(1){
+  
+  Cam.read(frame_cam);
+  
+  _detect_result_group_t detect_result;
+
+  Rkyolo.rknn_img_inference(frame_cam, &detect_result);
+  
+  Rkyolo.yolo_draw_results(frame_cam, frame_cam, &detect_result);
+
+  Rkyolo.yolo_print_results(&detect_result);
+
+  cv::imshow("yolo_cam", frame_cam);
+
+  if(cv::waitKey(1) == 'q') break;
+
+  }
 
     // BinoPair.open();    //开启摄像头
 

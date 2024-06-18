@@ -75,7 +75,7 @@ int RkNPU::rknn_model_init()
 {
   /*------载入模型-------*/
   int model_data_size = 0;
-  model_data = load_model(model_name, &model_data_size);
+  model_data = load_model(model_path, &model_data_size);
   error_ret = rknn_init(&ctx, model_data, model_data_size, 0, NULL);
   if (error_ret < 0)  return error_ret;
 
@@ -135,23 +135,21 @@ int RkNPU::rknn_model_init()
 
 int RkNPU::rknn_img_inference(cv::Mat frame, _detect_result_group_t *results)
 {
-
+  /*-------预处理-------*/
   cv::cvtColor(frame, frame, cv::COLOR_BGR2RGB);
   img_width = frame.cols;
   img_height = frame.rows;
 
-  // 指定目标大小和预处理方式,默认使用LetterBox的预处理
   BOX_RECT pads;
   memset(&pads, 0, sizeof(BOX_RECT));
   cv::Size target_size(width, height);
   cv::Mat resized_img(target_size.height, target_size.width, CV_8UC3);
-  // 计算缩放比例
+  //计算缩放比例
   float scale_w = (float)target_size.width / frame.cols;
   float scale_h = (float)target_size.height / frame.rows;
 
   if (img_width != width || img_height != height)
   {
-      // printf("resize image with letterbox\n");
       float min_scale = std::min(scale_w, scale_h);
       scale_w = min_scale;
       scale_h = min_scale;
@@ -163,20 +161,19 @@ int RkNPU::rknn_img_inference(cv::Mat frame, _detect_result_group_t *results)
     inputs[0].buf = frame.data;
   }
 
+  /*--------输入数据&执行推理---------*/
   rknn_inputs_set(ctx, io_num.n_input, inputs);
 
-  
   memset(outputs, 0, sizeof(outputs));
   for (int i = 0; i < io_num.n_output; i++)
   {
     outputs[i].want_float = 0;
   }
 
-  // 执行推理
   error_ret = rknn_run(ctx, NULL);
   error_ret = rknn_outputs_get(ctx, io_num.n_output, outputs, NULL);
 
-  // 后处理
+  /*--------后处理---------*/
   std::vector<float> out_scales;
   std::vector<int32_t> out_zps;
   for (int i = 0; i < io_num.n_output; ++i)
@@ -185,7 +182,8 @@ int RkNPU::rknn_img_inference(cv::Mat frame, _detect_result_group_t *results)
     out_zps.push_back(output_attrs[i].zp);
   }
   post_process((int8_t *)outputs[0].buf, (int8_t *)outputs[1].buf, (int8_t *)outputs[2].buf, height, width,
-                box_conf_threshold, nms_threshold, pads, scale_w, scale_h, out_zps, out_scales, results);
+                box_conf_threshold, nms_threshold, pads, scale_w, scale_h, out_zps, out_scales, results,
+                    label_name_txt_path);
 
   error_ret = rknn_outputs_release(ctx, io_num.n_output, outputs);
   cv::cvtColor(frame, frame, cv::COLOR_RGB2BGR);
@@ -223,50 +221,6 @@ int RkNPU::yolo_print_results(_detect_result_group_t *results)
            det_result->box.right, det_result->box.bottom, det_result->prop);
   }
   return 0;
-}
-
-int RkNPU::debug_main()
-{
-
-  error_ret = rknn_model_init();  //初始化RKNN模型
-  if(error_ret < 0) printf("model_init_err, id:%d\n", error_ret);
-
-  ///////////////////////////////////////////
-
-  cv::VideoCapture Cam;
-  cv::Mat frame_cam;
-
-  Cam.open(0, cv::CAP_V4L2);
-
-  Cam.set(cv::CAP_PROP_FOURCC ,cv::VideoWriter::fourcc('M', 'J', 'P', 'G') );
-  Cam.set(cv::CAP_PROP_FPS, 60);
-  Cam.set(cv::CAP_PROP_FRAME_HEIGHT, 480);
-  Cam.set(cv::CAP_PROP_FRAME_WIDTH, 640);
-  Cam.set(cv::CAP_PROP_BRIGHTNESS, 10);
-  Cam.set(cv::CAP_PROP_TEMPERATURE, 7000);
-
-  cv::namedWindow("yolo_cam", cv::WINDOW_AUTOSIZE);
-
-  while(1){
-  
-  Cam.read(frame_cam);
-  
-  _detect_result_group_t detect_result;
-
-  rknn_img_inference(frame_cam, &detect_result);
-  
-  yolo_draw_results(frame_cam, frame_cam, &detect_result);
-
-  yolo_print_results(&detect_result);
-
-  cv::imshow("yolo_cam", frame_cam);
-
-  if(cv::waitKey(1) == 'q') break;
-
-  }
-
-  return 0;
-
 }
 
 RkNPU::RkNPU()

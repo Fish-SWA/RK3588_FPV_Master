@@ -25,7 +25,7 @@
 
 #include <set>
 #include <vector>
-#define LABEL_NALE_TXT_PATH "/home/fish/GKD/RK3588_FPV_Master/model/coco_80_labels_list.txt"
+// #define LABEL_NALE_TXT_PATH "/home/fish/GKD/RK3588_FPV_Master/model/coco_80_labels_list.txt"
 
 static char *labels[OBJ_CLASS_NUM];
 
@@ -261,13 +261,13 @@ static int process(int8_t *input, int *anchor, int grid_h, int grid_w, int heigh
 
 int post_process(int8_t *input0, int8_t *input1, int8_t *input2, int model_in_h, int model_in_w, float conf_threshold,
                  float nms_threshold, BOX_RECT pads, float scale_w, float scale_h, std::vector<int32_t> &qnt_zps,
-                 std::vector<float> &qnt_scales, detect_result_group_t *group)
+                 std::vector<float> &qnt_scales, detect_result_group_t *group, char* label_name_txt_path)
 {
   static int init = -1;
   if (init == -1)
   {
     int ret = 0;
-    ret = loadLabelName(LABEL_NALE_TXT_PATH, labels);
+    ret = loadLabelName(label_name_txt_path, labels);
     if (ret < 0)
     {
       return -1;
