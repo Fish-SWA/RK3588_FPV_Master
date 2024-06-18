@@ -57,7 +57,7 @@ public:
     unsigned char *load_model(char *filename, int *model_size);
     void dump_tensor_attr(rknn_tensor_attr *attr);
     int rknn_model_init();       //载入&初始化模型
-    int rknn_img_inference(cv::Mat& frame, _detect_result_group_t *results);    //图像推理
+    int rknn_img_inference(cv::Mat frame, _detect_result_group_t *results);    //图像推理
     int yolo_draw_results(cv::Mat frame_in, cv::Mat& frame_labbed,
                                  _detect_result_group_t *results);     //画出识别结果
     int yolo_print_results(_detect_result_group_t *results);     //打印出识别结果
@@ -65,8 +65,8 @@ public:
     int debug_main(); 
 
 
-    // RkNPU(/* args */);
-    // ~RkNPU();
+    RkNPU(/* args */);
+    ~RkNPU();
 };
 
 

@@ -133,7 +133,7 @@ int RkNPU::rknn_model_init()
   return 0;
 }
 
-int RkNPU::rknn_img_inference(cv::Mat& frame, _detect_result_group_t *results)
+int RkNPU::rknn_img_inference(cv::Mat frame, _detect_result_group_t *results)
 {
 
   cv::cvtColor(frame, frame, cv::COLOR_BGR2RGB);
@@ -163,7 +163,6 @@ int RkNPU::rknn_img_inference(cv::Mat& frame, _detect_result_group_t *results)
     inputs[0].buf = frame.data;
   }
 
-  gettimeofday(&start_time, NULL);
   rknn_inputs_set(ctx, io_num.n_input, inputs);
 
   
@@ -188,6 +187,41 @@ int RkNPU::rknn_img_inference(cv::Mat& frame, _detect_result_group_t *results)
   post_process((int8_t *)outputs[0].buf, (int8_t *)outputs[1].buf, (int8_t *)outputs[2].buf, height, width,
                 box_conf_threshold, nms_threshold, pads, scale_w, scale_h, out_zps, out_scales, results);
 
+  error_ret = rknn_outputs_release(ctx, io_num.n_output, outputs);
+  cv::cvtColor(frame, frame, cv::COLOR_RGB2BGR);
+
+  return 0;
+}
+
+int RkNPU::yolo_draw_results(cv::Mat frame_in, cv::Mat& frame_labbed,
+                                      _detect_result_group_t *results)
+{
+  frame_in.copyTo(frame_labbed);
+  char text[256];
+  for (int i = 0; i < results->count; i++)
+  {
+    detect_result_t *det_result = &(results->results[i]);
+    sprintf(text, "%s %.1f%%", det_result->name, det_result->prop * 100);
+    int x1 = det_result->box.left;
+    int y1 = det_result->box.top;
+    int x2 = det_result->box.right;
+    int y2 = det_result->box.bottom;
+    rectangle(frame_labbed, cv::Point(x1, y1), cv::Point(x2, y2), cv::Scalar(255, 204, 102), 3);
+    putText(frame_labbed, text, cv::Point(x1, y1 + 12), cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(0, 0, 255));
+  }
+  return 0;
+}
+
+
+int RkNPU::yolo_print_results(_detect_result_group_t *results)
+{
+  for (int i = 0; i < results->count; i++)
+  {
+    detect_result_t *det_result = &(results->results[i]);
+    std::cout << det_result->name << std::endl;
+    printf("%s @ (%d %d %d %d) %f\n", det_result->name, det_result->box.left, det_result->box.top,
+           det_result->box.right, det_result->box.bottom, det_result->prop);
+  }
   return 0;
 }
 
@@ -220,39 +254,35 @@ int RkNPU::debug_main()
   _detect_result_group_t detect_result;
 
   rknn_img_inference(frame_cam, &detect_result);
+  
+  yolo_draw_results(frame_cam, frame_cam, &detect_result);
 
-
-  // 画框和概率
-  char text[256];
-  for (int i = 0; i < detect_result.count; i++)
-  {
-    detect_result_t *det_result = &(detect_result.results[i]);
-    sprintf(text, "%s %.1f%%", det_result->name, det_result->prop * 100);
-    printf("%s @ (%d %d %d %d) %f\n", det_result->name, det_result->box.left, det_result->box.top,
-           det_result->box.right, det_result->box.bottom, det_result->prop);
-    int x1 = det_result->box.left;
-    int y1 = det_result->box.top;
-    int x2 = det_result->box.right;
-    int y2 = det_result->box.bottom;
-    rectangle(frame_cam, cv::Point(x1, y1), cv::Point(x2, y2), cv::Scalar(255, 204, 102), 3);
-    putText(frame_cam, text, cv::Point(x1, y1 + 12), cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(0, 0, 255));
-  }
-
-  error_ret = rknn_outputs_release(ctx, io_num.n_output, outputs);
+  yolo_print_results(&detect_result);
 
   cv::imshow("yolo_cam", frame_cam);
 
   if(cv::waitKey(1) == 'q') break;
 
-  gettimeofday(&stop_time, NULL);
-  printf("once run use %f ms\n", (__get_us(stop_time) - __get_us(start_time)) / 1000);
   }
+
+  return 0;
+
+}
+
+RkNPU::RkNPU()
+{
+
+}
+
+RkNPU::~RkNPU()
+{
+  /*释放模型*/
+  deinitPostProcess();
+
+  rknn_destroy(ctx);
 
   if (model_data)
   {
     free(model_data);
   }
-
-  return 0;
-
 }
