@@ -12,8 +12,34 @@ include_directories(${PROJECT_SOURCE_DIR}/core/inc)
 find_package(OpenCV REQUIRED)
 include_directories(${OpenCV_INCLUDE_DIRS})
 
-# 编译源码生成目标
-add_executable(Fpv_master core/src/main.cpp core/src/usart.cpp core/src/vision.cpp)
+# find src
+file(GLOB src_file ${CMAKE_SOURCE_DIR}/core/src/*.cpp)
 
-# Link Opencv
-target_link_libraries(Fpv_master ${OpenCV_LIBS})
+
+# rknn api
+set(RKNN_API_PATH ${CMAKE_SOURCE_DIR}/library/rknpu/librknn_api)
+set(RKNN_RT_LIB ${RKNN_API_PATH}/aarch64/librknnrt.so)
+include_directories(${RKNN_API_PATH}/include)
+
+# yolo process
+file(GLOB yolo_process ${CMAKE_SOURCE_DIR}/library/rknpu/yolo5_process/*.cpp)
+include_directories(library/rknpu/yolo5_process)
+
+# rga
+set(RGA_PATH ${CMAKE_SOURCE_DIR}/library/rknpu/librknn_api/rga)
+set(RGA_LIB ${RGA_PATH}/lib/Linux/aarch64/librga.so)
+include_directories(${RGA_PATH}/include)
+
+
+# 编译源码生成目标
+add_executable(Fpv_master
+        ${src_file}
+        ${yolo_process}
+        )
+
+# Link Opencv & RknnAPI & 
+target_link_libraries(Fpv_master 
+    ${OpenCV_LIBS}
+    ${RKNN_RT_LIB}
+    ${MPP_LIBS}
+)
