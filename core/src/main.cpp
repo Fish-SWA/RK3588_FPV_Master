@@ -1,19 +1,27 @@
 #include "main.hpp"
 #include "vision.hpp"
+#include "rknpu_yolo.hpp"
 
 using namespace cv;
 
 void Opencl_init();
 
-BinoCamera BinoPair(0, 2, 140); //双目摄像头对象
+// BinoCamera BinoPair(0, 2, 140); //双目摄像头对象
+
+
+RkNPU Rkyolo;
+
 
 int main()
 {
     Opencl_init();  //初始化OpenCL
 
-    BinoPair.open();    //开启摄像头
+    Rkyolo.debug_main();
 
-    BinoPair.monitor_task();
+
+    // BinoPair.open();    //开启摄像头
+
+    //BinoPair.monitor_task();
     
     // while(1) 
     // {

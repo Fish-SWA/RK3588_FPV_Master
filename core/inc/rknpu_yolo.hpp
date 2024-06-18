@@ -25,18 +25,20 @@ private:
     double __get_us(struct timeval t) { return (t.tv_sec * 1000000 + t.tv_usec); }
 
 public:
-    static unsigned char *load_data(FILE *fp, size_t ofst, size_t sz);
-    static unsigned char *load_model(char *filename, int *model_size);
+    unsigned char *load_data(FILE *fp, size_t ofst, size_t sz);
+    unsigned char *load_model(char *filename, int *model_size);
+    void dump_tensor_attr(rknn_tensor_attr *attr);
+    int debug_main(); 
 
 
-    RkNPU(/* args */);
-    ~RkNPU();
+    // RkNPU(/* args */);
+    // ~RkNPU();
 };
 
-RkNPU::RkNPU(/* args */)
-{
-}
+// RkNPU::RkNPU(/* args */)
+// {
+// }
 
-RkNPU::~RkNPU()
-{
-}
+// RkNPU::~RkNPU()
+// {
+// }

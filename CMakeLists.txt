@@ -22,14 +22,14 @@ set(RKNN_RT_LIB ${RKNN_API_PATH}/aarch64/librknnrt.so)
 include_directories(${RKNN_API_PATH}/include)
 
 # yolo process
-file(GLOB yolo_process ${CMAKE_SOURCE_DIR}/library/rknpu/yolo5_process/*.cpp)
+file(GLOB yolo_process ${CMAKE_SOURCE_DIR}/library/rknpu/yolo5_process/*.cc)
 include_directories(library/rknpu/yolo5_process)
 
 # rga
 set(RGA_PATH ${CMAKE_SOURCE_DIR}/library/rknpu/librknn_api/rga)
 set(RGA_LIB ${RGA_PATH}/lib/Linux/aarch64/librga.so)
 include_directories(${RGA_PATH}/include)
-
+include_directories(library/rknpu/librknn_api/rga/include)
 
 # 编译源码生成目标
 add_executable(Fpv_master
