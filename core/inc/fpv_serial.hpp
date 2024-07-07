@@ -1,7 +1,7 @@
 /*发送数据包的结构体*/
 typedef struct
 {
-    int head = 0xEF;    //0xEF
+    int head;    //0xEF
     /*IMU信息*/
     float IMU_yaw;  //IMU角度
     float IMU_pitch;
@@ -27,7 +27,16 @@ typedef struct
     /*状态信息*/
     int flight_mode;
     int control_mode;
+    /*遥控器信息*/
+    int CrsfChannels[16];
+    /*遥控器通道
+    0 roll
+    1 pitch
+    2 throttle
+    3 yaw
+    
+    */
 
     
-    int end = 0x5A;     //0x5A
+    int end;     //0x5A
 }__attribute__((packed)) FpvPackType;

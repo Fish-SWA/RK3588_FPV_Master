@@ -34,14 +34,22 @@ int main()
             // printf("read:%x, %d\n", head, !fpv_serial.read(&head, 1) == 0 || head != 0xef);
             continue;
         }
-
         fpv_serial.read((uint8_t *)&Fpv_pack + sizeof(uint8_t), sizeof(Fpv_pack)-1);
         // for(int i=0; i<sizeof(data_array); i++){
         //     printf("%x,", (uint8_t)data_array[i]);
         // }
         // printf("\n");
-        printf("yaw:%f\tpitch:%f\troll:%f\n", Fpv_pack.IMU_yaw,
-                                Fpv_pack.IMU_pitch, Fpv_pack.IMU_roll);
+        // printf("yaw:%f\tpitch:%f\troll:%f\n", Fpv_pack.IMU_yaw,
+        //                         Fpv_pack.IMU_pitch, Fpv_pack.IMU_roll);
+        // printf("ctr_yaw:%d\tctr_pitch:%d\tctr_roll%d\tctr_throttle:%d\n", 
+        //         Fpv_pack.CrsfChannels[3]
+        //         ,Fpv_pack.CrsfChannels[1]
+        //         ,Fpv_pack.CrsfChannels[0]
+        //         ,Fpv_pack.CrsfChannels[2]);
+        for(int i=0; i<5; i++){
+            printf("cn%d-%d\t", i, Fpv_pack.CrsfChannels[i]);
+        }
+        printf("\n");
 
     }
 
