@@ -1,7 +1,19 @@
+#include "main.hpp"
+#include "serial.h"
+#include "stdint.h"
+#include "stdio.h"
+#include "tuple"
+#include "thread"
+#include "format"
+#include "iostream"
+#include <mutex>
+
+#define Sleep_ms(x) std::this_thread::sleep_for (std::chrono::milliseconds(x));
+
 /*发送数据包的结构体*/
 typedef struct
 {
-    int head;    //0xEF
+    int head = 0xEF;    //0xEF
     /*IMU信息*/
     float IMU_yaw;  //IMU角度
     float IMU_pitch;
@@ -33,10 +45,28 @@ typedef struct
     0 roll
     1 pitch
     2 throttle
-    3 yaw
-    
+    3 yaw    
     */
 
-    
     int end;     //0x5A
 }__attribute__((packed)) FpvPackType;
+
+class FPV_Serial
+{
+private:
+    serial::Serial fpv_serial;
+    FpvPackType fpv_data;
+    std::thread usart_listen_task;
+
+public:
+    std::mutex fpv_data_mutex;
+    FpvPackType data;   //给外部读取的无人机数据
+
+    void Serial_handle_task();
+    int get_fpv_data(FpvPackType *FPV_data_recive);
+    int update_fpv_data();
+    FPV_Serial(const std::string device, int budrate);
+    ~FPV_Serial();
+};
+
+
