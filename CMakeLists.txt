@@ -31,6 +31,9 @@ set(RGA_LIB ${RGA_PATH}/lib/Linux/aarch64/librga.so)
 include_directories(${RGA_PATH}/include)
 include_directories(library/rknpu/librknn_api/rga/include)
 
+# Serial
+include_directories(${CMAKE_SOURCE_DIR}/library/src-serial/include/serial)
+
 # 编译源码生成目标
 add_executable(Fpv_master
         ${src_file}
@@ -42,4 +45,5 @@ target_link_libraries(Fpv_master
     ${OpenCV_LIBS}
     ${RKNN_RT_LIB}
     ${MPP_LIBS}
+    ${CMAKE_SOURCE_DIR}/library/src-serial/build/libserial.a
 )

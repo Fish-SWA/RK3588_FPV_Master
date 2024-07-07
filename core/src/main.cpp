@@ -1,6 +1,14 @@
 #include "main.hpp"
 #include "vision.hpp"
 #include "rknpu_yolo.hpp"
+#include "serial.h"
+#include "stdint.h"
+#include "stdio.h"
+#include "tuple"
+#include "thread"
+#include "format"
+#include "iostream"
+#include "fpv_serial.hpp"
 
 using namespace cv;
 
@@ -11,11 +19,34 @@ void Opencl_init();
 
 RkNPU Rkyolo;
 
+serial::Serial fpv_serial("/dev/ttyACM0", 230400, serial::Timeout::simpleTimeout(1000));
 
 int main()
 {
     Opencl_init();  //初始化OpenCL
+    uint8_t data_array[92];
+    uint8_t head;
+    FpvPackType Fpv_pack;
 
+    //Serial read tests
+    while(1){
+        if(fpv_serial.read(&head, 1) == 0 || head != 0xef){
+            // printf("read:%x, %d\n", head, !fpv_serial.read(&head, 1) == 0 || head != 0xef);
+            continue;
+        }
+
+        fpv_serial.read((uint8_t *)&Fpv_pack + sizeof(uint8_t), sizeof(Fpv_pack)-1);
+        // for(int i=0; i<sizeof(data_array); i++){
+        //     printf("%x,", (uint8_t)data_array[i]);
+        // }
+        // printf("\n");
+        printf("yaw:%f\tpitch:%f\troll:%f\n", Fpv_pack.IMU_yaw,
+                                Fpv_pack.IMU_pitch, Fpv_pack.IMU_roll);
+
+    }
+
+
+    /*
     //模型路径
     Rkyolo.model_path = "/home/fish/GKD/RK3588_FPV_Master/model/yolov5s-640-640.rknn";
     //标签列表路径
@@ -36,24 +67,30 @@ int main()
     Cam.set(cv::CAP_PROP_TEMPERATURE, 7000);
 
     cv::namedWindow("yolo_cam", cv::WINDOW_AUTOSIZE);
+    */
 
-  while(1){
+   
+   /*
+    while(1){
+
+    
   
-  Cam.read(frame_cam);
-  
-  _detect_result_group_t detect_result;
+    Cam.read(frame_cam);
+    
+    _detect_result_group_t detect_result;
 
-  Rkyolo.rknn_img_inference(frame_cam, &detect_result);
-  
-  Rkyolo.yolo_draw_results(frame_cam, frame_cam, &detect_result);
+    Rkyolo.rknn_img_inference(frame_cam, &detect_result);
+    
+    Rkyolo.yolo_draw_results(frame_cam, frame_cam, &detect_result);
 
-  Rkyolo.yolo_print_results(&detect_result);
+    Rkyolo.yolo_print_results(&detect_result);
 
-  cv::imshow("yolo_cam", frame_cam);
+    cv::imshow("yolo_cam", frame_cam);
 
-  if(cv::waitKey(1) == 'q') break;
+    if(cv::waitKey(1) == 'q') break;
 
-  }
+    }
+    */
 
     // BinoPair.open();    //开启摄像头
 

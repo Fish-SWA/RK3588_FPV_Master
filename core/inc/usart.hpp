@@ -9,27 +9,23 @@
 
 
 */
-
+#include "serial.h"
+#include "stdint.h"
+#include "stdio.h"
+#include "tuple"
+#include "thread"
+#include "format"
+#include "iostream"
 
 
 class Usart
 {
 private:
-    int fd; //设备文件指针
-    enum{
-    SERIAL_OK = 0,
-    SERIAL_FAIL
-};
+
 public:
     const char* device_name; //串口设备名
     int bud_rate;   //波特率
-    int serial_state = SERIAL_OK;   //串口状态
-    int serialOpen();
-    int serialWrite(const char* data, int length);
-    int serialDataReady();
-    int serialRead(void *data_read, int length);
-    int serialGetChar();
-    void serialPrintf (const char *message, ...);
+    void Open(const char* name, int bud);
     Usart(const char* name, int bud);
     ~Usart();
 };
