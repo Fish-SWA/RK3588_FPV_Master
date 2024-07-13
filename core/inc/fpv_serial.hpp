@@ -61,6 +61,7 @@ private:
 public:
     std::mutex fpv_data_mutex;
     FpvPackType data;   //给外部读取的无人机数据
+    FpvPackType last_data;
 
     void Serial_handle_task();
     int get_fpv_data(FpvPackType *FPV_data_recive);

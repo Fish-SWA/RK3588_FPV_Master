@@ -34,6 +34,12 @@ include_directories(library/rknpu/librknn_api/rga/include)
 # Serial
 include_directories(${CMAKE_SOURCE_DIR}/library/src-serial/include/serial)
 
+# gst
+find_package(PkgConfig)
+pkg_check_modules(GST REQUIRED gstreamer-1.0 gstreamer-app-1.0)
+include_directories(${GST_INCLUDE_DIRS})
+
+
 # 编译源码生成目标
 add_executable(Fpv_master
         ${src_file}
@@ -46,4 +52,5 @@ target_link_libraries(Fpv_master
     ${RKNN_RT_LIB}
     ${MPP_LIBS}
     ${CMAKE_SOURCE_DIR}/library/src-serial/build/libserial.a
+    ${GST_LIBRARIES}
 )

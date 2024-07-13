@@ -49,6 +49,7 @@ int FPV_Serial::get_fpv_data(FpvPackType *FPV_data_recive)
 int FPV_Serial::update_fpv_data()
 {
     fpv_data_mutex.lock();
+    memcpy(&last_data, &data, sizeof(FpvPackType));
     memcpy(&data, &fpv_data, sizeof(FpvPackType));
     fpv_data_mutex.unlock();
     return 0;
