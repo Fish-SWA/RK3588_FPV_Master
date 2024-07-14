@@ -66,10 +66,12 @@ void Yolo_cam_task()
     /*timing*/
     uint32_t prev = get_time();
     uint32_t curr = 0;
+    uint32_t process_begin = 0;
+    uint32_t process_end = 0;
     static uint32_t frame_count;
     
     /*Debug en*/
-    int debug_en = 0;
+    int debug_en = 1;
 
     cv::VideoCapture Cam;
     cv::Mat frame_cam;
@@ -85,10 +87,12 @@ void Yolo_cam_task()
     Cam.set(cv::CAP_PROP_FRAME_WIDTH, 1280);
     Cam.set(cv::CAP_PROP_BRIGHTNESS, 10);
     Cam.set(cv::CAP_PROP_TEMPERATURE, 7000);
-    std::cout << Cam.get(CAP_PROP_FPS) << std::endl;
+    Cam.set(cv::CAP_PROP_EXPOSURE, 100);
+    for(int i=0; i<71; i++){
+        std::cout << i << ":\t" << Cam.get(i) << std::endl;
+    }
  
     if(debug_en) cv::namedWindow("cam", cv::WINDOW_AUTOSIZE);
-
 
     prev = get_time();
     curr = get_time();
@@ -98,7 +102,10 @@ void Yolo_cam_task()
         curr = get_time();
 
         Cam.read(frame_cam);
+
+        process_begin = get_time();
         detect_balls(frame_cam, frame_baled, frame_binary, balls_detected, debug_en);
+        process_end = get_time();
         if(debug_en) cv::imshow("cam", frame_baled);
 
         /*DEBUG INFO*/
@@ -109,8 +116,10 @@ void Yolo_cam_task()
         }
 
         printf("  - time: %u\n", curr - prev);
+        printf("  - time_cv_process: %u\n", process_end - process_begin);
         printf("  - frame: %u\n", frame_count++);
         printf("  - curr: %ld\n", balls_detected.size());
+        // printf("  - exposure: %f\n", Cam.get(cv::CAP_PROP_EXPOSURE));
         printf("---------------frame_end-------------\n");
 
         if(debug_en) if(cv::waitKey(1) == 'q') break;
