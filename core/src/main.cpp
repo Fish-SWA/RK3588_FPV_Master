@@ -1,6 +1,5 @@
 #include "main.hpp"
 #include "vision.hpp"
-#include "rknpu_yolo.hpp"
 #include "serial.h"
 #include "stdint.h"
 #include "stdio.h"
@@ -14,40 +13,25 @@
 #include <iomanip>
 #include <cstdlib>
 
-
-/*视频推流相关*/
-#include <gst/gst.h>
-#include <gst/app/gstappsink.h>
-
 using namespace cv;
 
 void Opencl_init();
 void Yolo_cam_task();
+uint32_t get_time();
+
 std::string getTimestampedFilename();
-FPV_Serial Fpv_serial("/dev/ttyACM0", 230400);
+int detect_balls(cv::InputArray frame_in, cv::InputOutputArray frame_labled,
+                        cv::OutputArray frame_binary, std::vector<cv::Point> &balls_detected, int debug_en);
+// FPV_Serial Fpv_serial("/dev/ttyACM0", 230400);
 
 // BinoCamera BinoPair(0, 2, 140); //双目摄像头对象
 
-
-RkNPU Rkyolo;
 
 int main()
 {    
     Opencl_init();  //初始化OpenCL
 
     Yolo_cam_task();
-
-    while(1){
-        Fpv_serial.update_fpv_data();
-        // printf("Yaw:%f\t\tPitch:%f\t\tRoll:%f\t\t\n", 
-        //     Fpv_serial.data.IMU_yaw, Fpv_serial.data.IMU_pitch, Fpv_serial.data.IMU_roll);
-
-        for(int i=0; i<16; i++){
-            printf("%d\t", Fpv_serial.data.CrsfChannels[i]);
-        }
-        printf("\n");
-        Sleep_ms(1);    
-    }
     
     return 0;
 }
@@ -79,92 +63,68 @@ void Opencl_init()
 
 void Yolo_cam_task()
 {
-    //模型路径
-    Rkyolo.model_path = "/home/fish/GKD/RK3588_FPV_Master/model/yolov5s-640-640.rknn";
-    //标签列表路径
-    Rkyolo.label_name_txt_path = "/home/fish/GKD/RK3588_FPV_Master/model/coco_80_labels_list.txt";
-
-    Rkyolo.rknn_model_init();  //初始化RKNN模型
-
-    /*初始化摄像头Streaming*/
-    cv::VideoWriter Cam_streaming;
-    std::string gst_out = "appsrc ! videoconvert ! x264enc tune=zerolatency ! rtph264pay ! udpsink host=127.0.0.1 port=5000 ";
-    Cam_streaming.open(gst_out, 0, (double)60, cv::Size(1280, 720), true);
-    if(Cam_streaming.isOpened()){
-        printf("cam streaming ok!\n");
-    }else{
-        printf("cam streaming fail!\n");
-    }
-
-    // printf("---------opencv build info -------");
-    // std::cout << getBuildInformation() << std::endl;
+    /*timing*/
+    uint32_t prev = get_time();
+    uint32_t curr = 0;
+    static uint32_t frame_count;
+    
+    /*Debug en*/
+    int debug_en = 0;
 
     cv::VideoCapture Cam;
     cv::Mat frame_cam;
+    cv::Mat frame_baled;
+    cv::Mat frame_binary;
+    std::vector<cv::Point> balls_detected;
 
     Cam.open(0, cv::CAP_V4L2);
 
     Cam.set(cv::CAP_PROP_FOURCC ,cv::VideoWriter::fourcc('M', 'J', 'P', 'G') );
-    Cam.set(cv::CAP_PROP_FPS, 60);
-    Cam.set(cv::CAP_PROP_FRAME_HEIGHT, 480);
-    Cam.set(cv::CAP_PROP_FRAME_WIDTH, 640);
+    Cam.set(cv::CAP_PROP_FPS, 120);
+    Cam.set(cv::CAP_PROP_FRAME_HEIGHT, 720);
+    Cam.set(cv::CAP_PROP_FRAME_WIDTH, 1280);
     Cam.set(cv::CAP_PROP_BRIGHTNESS, 10);
     Cam.set(cv::CAP_PROP_TEMPERATURE, 7000);
+    std::cout << Cam.get(CAP_PROP_FPS) << std::endl;
+ 
+    if(debug_en) cv::namedWindow("cam", cv::WINDOW_AUTOSIZE);
 
-    //cv::namedWindow("yolo_cam", cv::WINDOW_AUTOSIZE);
 
-    /*录像*/
-    cv::VideoWriter yolo_video_record;
-
+    prev = get_time();
+    curr = get_time();
    
     while(1){
-    Fpv_serial.update_fpv_data();
-    Cam.read(frame_cam);
+        prev = curr;
+        curr = get_time();
 
-    for(int i=0; i<4; i++){
-       printf("%d\t", Fpv_serial.data.CrsfChannels[i]);
-    }
-    // printf("\n");
+        Cam.read(frame_cam);
+        detect_balls(frame_cam, frame_baled, frame_binary, balls_detected, debug_en);
+        if(debug_en) cv::imshow("cam", frame_baled);
 
-     printf("Yaw:%f\t\tPitch:%f\t\tRoll:%f\t\t\n", 
-         Fpv_serial.data.IMU_yaw, Fpv_serial.data.IMU_pitch, Fpv_serial.data.IMU_roll);
+        /*DEBUG INFO*/
+        printf("---------------frame_begin-------------\n");
 
-    //if(Fpv_serial.data.CrsfChannels[6] == 191){
-        //system("halt");
-    //}
+        for(int i=0; i<balls_detected.size(); i++){
+            printf("center%d:\t%d,\t%d\n", i, balls_detected[i].x, balls_detected[i].y);
+        }
 
-    if(Fpv_serial.data.CrsfChannels[6] == 1792 && Fpv_serial.last_data.CrsfChannels[6] != 1792){
-        printf("video_rec_on!\n");
-        std::cout << getTimestampedFilename() <<std::endl;
-        yolo_video_record.open(getTimestampedFilename(), cv::VideoWriter::fourcc('M', 'J', 'P', 'G'),
-                                30, cv::Size(640, 480));
-        
-    }
+        printf("  - time: %u\n", curr - prev);
+        printf("  - frame: %u\n", frame_count++);
+        printf("  - curr: %ld\n", balls_detected.size());
+        printf("---------------frame_end-------------\n");
 
-    if(Fpv_serial.data.CrsfChannels[6] != 1792 && Fpv_serial.last_data.CrsfChannels[6] == 1792){
-        printf("video_rec_done!\n");
-        yolo_video_record.release();
-    }
-
-
-
-    _detect_result_group_t detect_result;
-
-    Rkyolo.rknn_img_inference(frame_cam, &detect_result);
-    
-    Rkyolo.yolo_draw_results(frame_cam, frame_cam, &detect_result);
-    // Rkyolo.yolo_print_results(&detect_result);
-
-    if(Fpv_serial.data.CrsfChannels[6] == 1792){
-        yolo_video_record.write(frame_cam);
-    }
-
-    // cv::imshow("yolo_cam", frame_cam);
-    //Cam_streaming.write(frame_cam);
-
-    if(cv::waitKey(1) == 'q') break;
-    }
+        if(debug_en) if(cv::waitKey(1) == 'q') break;
+        }
 }
+
+uint32_t get_time()
+{
+std::chrono::time_point<std::chrono::system_clock, std::chrono::milliseconds>
+      tp = std::chrono::time_point_cast<std::chrono::milliseconds>(
+          std::chrono::system_clock::now());
+    return tp.time_since_epoch().count();
+}
+
 
 std::string getTimestampedFilename() {
     // 获取当前系统时间点
@@ -188,4 +148,72 @@ std::string getTimestampedFilename() {
     oss << '-' << std::setfill('0') << std::setw(3) << milliseconds.count();
 
     return "/home/fish/GKD/Record/video/" + oss.str() + ".avi";  // 生成.avi视频文件名
+}
+
+
+
+int detect_balls(cv::InputArray frame_in, cv::InputOutputArray frame_labled,
+                        cv::OutputArray frame_binary, std::vector<cv::Point> &balls_detected, int debug_en)
+{
+    /*----------魔法参数------------*/
+    float circle_ratio = 4*3.14; //圆(周长平方/面积)的比值
+    float circle_tolorance = 0.8; //判定圆允许的误差
+ 
+    /*摄像机参数*/
+    int CAM_FRAME_HEIGHT = 720;
+    int CAM_FRAME_WIDTH = 1280;
+    int CAM_FRAME_FPS = 120;
+    int CAM_BRIGHTNESS = 5;
+
+
+    std::vector<std::vector<cv::Point> > country;   //轮廓线
+    std::vector<cv::Vec4i> hiera;
+    cv::Rect bound_box;
+
+    /*inRange() 使用UMat会异常，因此加上中间变量Mat*/
+    cv::Mat binary_Mat;
+
+    /*过滤&二值化*/
+    frame_in.copyTo(frame_binary);
+    frame_in.copyTo(frame_labled);
+    cv::medianBlur(frame_binary, frame_binary, 1);
+    cv::cvtColor(frame_binary, frame_binary, cv::COLOR_BGR2GRAY);
+    cv::threshold(frame_binary, frame_binary, 220, 255, cv::THRESH_BINARY);
+
+    /*寻找轮廓*/
+    cv::findContours(frame_binary, country, hiera, cv::RETR_TREE, cv::CHAIN_APPROX_SIMPLE);
+
+    /*筛选乒乓球的轮廓*/
+    //用面积大小 & 边长和面积比值筛选圆
+
+    balls_detected.clear();     //清空旧有的数据
+    for( size_t i = 0; i< country.size(); i++ )
+    {
+        /*计算轮廓的边缘&面积*/
+        float area, length; 
+        area = cv::contourArea(country[i]);
+        length = cv::arcLength(country[i], true);
+        if(debug_en){
+            drawContours(frame_labled, country, (int)i, 
+                        cv::Scalar(127, 127, 127), 2, cv::LINE_8, hiera, 0);
+        }
+        /*当符合乒乓球轮廓的条件时*/
+        if(area > 0.1 && abs(length*length/area - circle_ratio) < circle_ratio*circle_tolorance)
+        {
+            bound_box = cv::boundingRect(country[i]);
+            if(debug_en){
+            /*画出轮廓&标记框&圆心*/
+                drawContours(frame_labled, country, (int)i, cv::Scalar(255, 0, 0), 2, cv::LINE_8, hiera, 0);
+                cv::rectangle(frame_labled, bound_box.tl(), bound_box.br(), cv::Scalar(0, 255, 0), 2);
+                cv::circle(frame_labled, cv::Point(bound_box.x+bound_box.width/2, 
+                                                    bound_box.y+bound_box.height/2), 2, 
+                                                    cv::Scalar(0, 0, 255), 2);
+            }
+            /*输出圆心数据*/
+            balls_detected.push_back(cv::Point(bound_box.x+bound_box.width/2, 
+                                        bound_box.y+bound_box.height/2));
+        }
+    }
+    frame_labled.copyTo(frame_labled);
+    return 0;
 }
