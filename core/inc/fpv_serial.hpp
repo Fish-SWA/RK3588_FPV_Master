@@ -8,6 +8,9 @@
 #include "iostream"
 #include <mutex>
 
+/*文件写入*/
+#include <fstream>
+
 #define Sleep_ms(x) std::this_thread::sleep_for (std::chrono::milliseconds(x));
 
 /*发送数据包的结构体*/
@@ -71,3 +74,20 @@ public:
 };
 
 
+/*------------飞控数据记录文件的类------------*/
+class LogFile
+{
+private:
+    std::ofstream log_file;
+    std::string log_path =  "/home/fish/GKD/Record/log/";
+public:
+    std::string file_name;
+    int open(std::string input_file_name);
+    int close();
+    int write_frist_line();
+    int write_data_line(FpvPackType data);
+    uint32_t get_time();
+    LogFile(std::string input_file_name);
+    LogFile();
+    ~LogFile();
+};

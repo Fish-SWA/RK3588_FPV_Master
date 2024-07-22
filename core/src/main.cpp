@@ -19,13 +19,19 @@
 #include <gst/gst.h>
 #include <gst/app/gstappsink.h>
 
+/*文件写入*/
+#include <fstream>
+
 using namespace cv;
 
 void Opencl_init();
 void Yolo_cam_task();
 std::string getTimestampedFilename();
+std::string getFilename();
 FPV_Serial Fpv_serial("/dev/ttyACM0", 230400);
 ColoredBall balls_detector;
+LogFile log_file;
+int window_toggle = 1;
 
 // BinoCamera BinoPair(0, 2, 140); //双目摄像头对象
 
@@ -149,14 +155,18 @@ void Yolo_cam_task()
     if(Fpv_serial.data.CrsfChannels[6] == 1792 && Fpv_serial.last_data.CrsfChannels[6] != 1792){
         printf("video_rec_on!\n");
         std::cout << getTimestampedFilename() <<std::endl;
-        yolo_video_record.open(getTimestampedFilename(), cv::VideoWriter::fourcc('M', 'J', 'P', 'G'),
+        yolo_video_record.open(getTimestampedFilename() + ".avi", cv::VideoWriter::fourcc('M', 'J', 'P', 'G'),
                                 30, cv::Size(640, 480));
-        
+        //logs
+        log_file.open(getFilename() + ".csv");
+        std::cout << getTimestampedFilename() <<std::endl;
     }
 
     if(Fpv_serial.data.CrsfChannels[6] != 1792 && Fpv_serial.last_data.CrsfChannels[6] == 1792){
         printf("video_rec_done!\n");
         yolo_video_record.release();
+        //logs
+        log_file.close();
     }
 
     /*----------视觉状态设定----------*/
@@ -219,9 +229,10 @@ void Yolo_cam_task()
     /*录像*/
     if(Fpv_serial.data.CrsfChannels[6] == 1792){
         yolo_video_record.write(frame_cam);
+        log_file.write_data_line(Fpv_serial.data);
     }
 
-    cv::imshow("yolo_cam", frame_cam);
+    if(window_toggle) cv::imshow("yolo_cam", frame_cam);
 
     if(cv::waitKey(1) == 'q') break;
     }
@@ -248,5 +259,30 @@ std::string getTimestampedFilename() {
     // 组合完整的文件名，包括毫秒
     oss << '-' << std::setfill('0') << std::setw(3) << milliseconds.count();
 
-    return "/home/fish/GKD/Record/video/" + oss.str() + ".avi";  // 生成.avi视频文件名
+    return "/home/fish/GKD/Record/video/" + oss.str();  // 生成.avi视频文件名
 }
+
+std::string getFilename() {
+    // 获取当前系统时间点
+    auto now = std::chrono::system_clock::now();
+    
+    // 转换为time_t格式，便于转换为本地时间
+    auto time_t_now = std::chrono::system_clock::to_time_t(now);
+    
+    // 使用put_time进行格式化，包括年月日时分秒
+    std::tm bt = *std::localtime(&time_t_now);
+    std::ostringstream oss;
+    oss << std::put_time(&bt, "%Y-%m-%d_%H-%M-%S");
+
+    // 获取自午夜以来的毫秒数
+    auto since_epoch = now.time_since_epoch();
+    auto seconds = std::chrono::duration_cast<std::chrono::seconds>(since_epoch);
+    since_epoch -= seconds;
+    auto milliseconds = std::chrono::duration_cast<std::chrono::milliseconds>(since_epoch);
+
+    // 组合完整的文件名，包括毫秒
+    oss << '-' << std::setfill('0') << std::setw(3) << milliseconds.count();
+
+    return oss.str();  // 生成.avi视频文件名
+}
+
