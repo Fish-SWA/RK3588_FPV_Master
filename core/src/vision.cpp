@@ -2,9 +2,10 @@
 #include "main.hpp"
 #include <thread>
 
+
+
+/*******************************双目品颜色小球的类*************************/
 std::mutex img_lock; 
-
-
 void BinoCamera::init(int cam_l_in, int cam_r_in, int cam_dist_in)
 {
     cam_dist = cam_dist_in;
@@ -275,5 +276,83 @@ BinoCamera::BinoCamera(int cam_l_in, int cam_r_in, int cam_dist_in)
 }
 
 BinoCamera::~BinoCamera()
+{
+}
+
+
+/*******************************识别颜色小球的类*************************/
+int ColoredBall::detect(cv::InputArray frame_in, cv::InputOutputArray frame_labled,
+                        cv::OutputArray frame_binary, std::vector<cv::Point> &balls_detected)
+{
+    std::vector<std::vector<cv::Point> > country;   //轮廓线
+    std::vector<cv::Vec4i> hiera;
+    cv::Rect bound_box;
+
+    /*inRange() 使用UMat会异常，因此加上中间变量Mat*/
+    cv::Mat binary_Mat;
+    cv::UMat frame_processing;
+
+    /*转换为HSV色彩*/
+    frame_in.copyTo(frame_processing);
+    cv::cvtColor(frame_in, binary_Mat, cv::COLOR_RGB2HSV);
+
+    /*Debug: 输出中心点的HVS值, 用来调过滤器阈值*/
+    if(Filter_Debug){
+        cv::circle(frame_processing, cv::Point(CAM_FRAME_HEIGHT/2, CAM_FRAME_WIDTH/2), 
+                                                        10, cv::Scalar(255,0,0));
+        std::cout << binary_Mat.at<cv::Vec3b>(CAM_FRAME_WIDTH/2, CAM_FRAME_HEIGHT/2) 
+                                                                    << std::endl;
+    }
+    
+    /*过滤&二值化*/
+    cv::inRange(binary_Mat, Filter_HSV_LOW,
+                            Filter_HSV_HIGH, frame_binary);
+    cv::medianBlur(frame_binary, frame_binary, 3);
+    cv::threshold(frame_binary, frame_binary, 120, 255, cv::THRESH_BINARY);
+
+    /*寻找轮廓*/
+    cv::findContours(frame_binary, country, hiera, cv::RETR_TREE, cv::CHAIN_APPROX_SIMPLE);
+
+    /*筛选乒乓球的轮廓*/
+    //用面积大小 & 边长和面积比值筛选圆
+
+    balls_detected.clear();     //清空旧有的数据
+    for( size_t i = 0; i< country.size(); i++ )
+    {
+        /*计算轮廓的边缘&面积*/
+        float area, length; 
+        area = cv::contourArea(country[i]);
+        length = cv::arcLength(country[i], true);
+        cv::Scalar color = cv::Scalar(127, 127, 127);
+        drawContours(frame_processing, country, (int)i, color, 2, cv::LINE_8, hiera, 0);
+        /*当符合乒乓球轮廓的条件时*/
+        if(area > mini_balls_size && abs(length*length/area - circle_ratio) < circle_ratio*circle_tolorance)
+        {
+            color = cv::Scalar(255, 0, 0);
+            /*画出轮廓&标记框&圆心*/
+            drawContours(frame_processing, country, (int)i, color, 2, cv::LINE_8, hiera, 0);
+            bound_box = cv::boundingRect(country[i]);
+            cv::rectangle(frame_processing, bound_box.tl(), bound_box.br(), cv::Scalar(0, 255, 0), 2);
+            cv::circle(frame_processing, cv::Point(bound_box.x+bound_box.width/2, 
+                                                bound_box.y+bound_box.height/2), 2, 
+                                                cv::Scalar(0, 0, 255), 2);
+            /*输出圆心数据*/
+            balls_detected.push_back(cv::Point(bound_box.x+bound_box.width/2, 
+                                        bound_box.y+bound_box.height/2));
+            // printf("center:%d, %d\n", bound_box.x+bound_box.width/2, bound_box.y+bound_box.height/2);
+        }
+    }
+    frame_processing.copyTo(frame_labled);
+
+
+    return 0;
+}
+
+
+ColoredBall::ColoredBall(/* args */)
+{
+}
+
+ColoredBall::~ColoredBall()
 {
 }

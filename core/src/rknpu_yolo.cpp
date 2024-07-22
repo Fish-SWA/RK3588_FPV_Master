@@ -199,6 +199,10 @@ int RkNPU::yolo_draw_results(cv::Mat frame_in, cv::Mat& frame_labbed,
   for (int i = 0; i < results->count; i++)
   {
     detect_result_t *det_result = &(results->results[i]);
+    // if(compareStrings(det_result->name, "person") != 0){
+    //   continue;
+    // }
+    
     sprintf(text, "%s %.1f%%", det_result->name, det_result->prop * 100);
     int x1 = det_result->box.left;
     int y1 = det_result->box.top;
@@ -209,6 +213,60 @@ int RkNPU::yolo_draw_results(cv::Mat frame_in, cv::Mat& frame_labbed,
   }
   return 0;
 }
+
+int RkNPU::yolo_draw_results_match(cv::Mat frame_in, cv::Mat& frame_labbed,
+                                      _detect_result_group_t *results, const char* target)
+{
+  frame_in.copyTo(frame_labbed);
+  char text[256];
+  for (int i = 0; i < results->count; i++)
+  {
+    detect_result_t *det_result = &(results->results[i]);
+    if(compareStrings(det_result->name, target) != 0){
+      continue;
+    }
+    
+    sprintf(text, "%s %.1f%%", det_result->name, det_result->prop * 100);
+    int x1 = det_result->box.left;
+    int y1 = det_result->box.top;
+    int x2 = det_result->box.right;
+    int y2 = det_result->box.bottom;
+    rectangle(frame_labbed, cv::Point(x1, y1), cv::Point(x2, y2), cv::Scalar(255, 204, 102), 3);
+    putText(frame_labbed, text, cv::Point(x1, y1 + 12), cv::FONT_HERSHEY_SIMPLEX, 1, cv::Scalar(0, 0, 255));
+  }
+  return 0;
+}
+
+
+std::string RkNPU::trim(const std::string& str) {
+    std::string s = str;
+    s.erase(s.begin(), std::find_if(s.begin(), s.end(), [](unsigned char ch) {
+        return !std::isspace(ch);
+    }));
+    s.erase(std::find_if(s.rbegin(), s.rend(), [](unsigned char ch) {
+        return !std::isspace(ch);
+    }).base(), s.end());
+    return s;
+}
+
+int RkNPU::compareStrings(const char* str1, const char* str2) {
+    std::string trimmed1 = trim(std::string(str1));
+    std::string trimmed2 = trim(std::string(str2));
+
+    std::transform(trimmed1.begin(), trimmed1.end(), trimmed1.begin(),
+                   [](unsigned char c) { return std::tolower(c); });
+    std::transform(trimmed2.begin(), trimmed2.end(), trimmed2.begin(),
+                   [](unsigned char c) { return std::tolower(c); });
+
+    if (trimmed1 == trimmed2) {
+        return 0;
+    } else if (trimmed1 < trimmed2) {
+        return -1;
+    } else {
+        return 1;
+    }
+}
+
 
 
 int RkNPU::yolo_print_results(_detect_result_group_t *results)

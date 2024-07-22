@@ -55,5 +55,33 @@ public:
     ~BinoCamera();
 };
 
+/*******************************识别颜色小球的类*************************/
+class ColoredBall
+{
+private:
+    int Filter_Debug = 0;
+public:
+    /*----------魔法参数------------*/
+    float circle_ratio = 4*3.14; //圆(周长平方/面积)的比值
+    float circle_tolorance = 0.8; //判定圆允许的误差
+    float mini_balls_size = 50;
+    /*过滤乒乓球颜色的阈值  (H, S, V)*/
+    cv::Scalar Filter_HSV_LOW = cv::Scalar(85, 60, 245);    //(70, 100, 210);
+    cv::Scalar Filter_HSV_HIGH = cv::Scalar(110, 255, 255);  //(170, 255, 255);
+    /*摄像机参数*/
+    int CAM_FRAME_HEIGHT = 480;
+    int CAM_FRAME_WIDTH = 640;
+    int CAM_FRAME_FPS = 60;
+    int CAM_BRIGHTNESS = 5;
+
+
+    int detect(cv::InputArray frame_in, cv::InputOutputArray frame_labled,
+                        cv::OutputArray frame_binary, std::vector<cv::Point> &balls_detected);
+    ColoredBall(/* args */);
+    ~ColoredBall();
+};
+
+
+
 
 

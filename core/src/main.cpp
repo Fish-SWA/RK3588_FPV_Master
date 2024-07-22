@@ -25,11 +25,23 @@ void Opencl_init();
 void Yolo_cam_task();
 std::string getTimestampedFilename();
 FPV_Serial Fpv_serial("/dev/ttyACM0", 230400);
+ColoredBall balls_detector;
 
 // BinoCamera BinoPair(0, 2, 140); //双目摄像头对象
 
-
 RkNPU Rkyolo;
+
+enum vision_state{
+    YOLO_FULL = 0,
+    YOLO_BALLS,
+    YOLO_PHONE,
+    YOLO_PERSION,
+    FILTER_BALLS,    //传统算法识别球
+    VISION_END
+};
+int VISION_MODE = YOLO_FULL;
+
+
 
 int main()
 {    
@@ -121,7 +133,7 @@ void Yolo_cam_task()
     Fpv_serial.update_fpv_data();
     Cam.read(frame_cam);
 
-    for(int i=0; i<4; i++){
+    for(int i=0; i<7; i++){
        printf("%d\t", Fpv_serial.data.CrsfChannels[i]);
     }
     // printf("\n");
@@ -133,6 +145,7 @@ void Yolo_cam_task()
         //system("halt");
     //}
 
+    /*----------视频录制处理----------*/
     if(Fpv_serial.data.CrsfChannels[6] == 1792 && Fpv_serial.last_data.CrsfChannels[6] != 1792){
         printf("video_rec_on!\n");
         std::cout << getTimestampedFilename() <<std::endl;
@@ -146,21 +159,69 @@ void Yolo_cam_task()
         yolo_video_record.release();
     }
 
+    /*----------视觉状态设定----------*/
+    if(Fpv_serial.data.CrsfChannels[6] == 191 && Fpv_serial.last_data.CrsfChannels[6] != 191){
+        //当检测到拨杆向下拨时
+        VISION_MODE = VISION_MODE + 1;
+        if(VISION_MODE >= VISION_END){
+            VISION_MODE = 0;
+        }
+        printf("vision mode change to: %d\n", VISION_MODE);
+    }
 
+    /*相机错误处理*/
+    if(frame_cam.empty()){
+        printf("cam_fail!!\n");
+        Sleep_ms(100);
+	continue;
+    }
 
-    _detect_result_group_t detect_result;
+    /*---------------视觉任务----------------*/
+    if(VISION_MODE == YOLO_FULL){
+        _detect_result_group_t detect_result;
 
-    Rkyolo.rknn_img_inference(frame_cam, &detect_result);
-    
-    Rkyolo.yolo_draw_results(frame_cam, frame_cam, &detect_result);
-    // Rkyolo.yolo_print_results(&detect_result);
+        Rkyolo.rknn_img_inference(frame_cam, &detect_result);
+        
+        Rkyolo.yolo_draw_results(frame_cam, frame_cam, &detect_result);
+    }
 
+    if(VISION_MODE == FILTER_BALLS){
+        cv::Mat frame_binary;
+        std::vector<cv::Point> balls;
+        balls_detector.detect(frame_cam, frame_cam, frame_binary, balls);
+    }
+
+    if(VISION_MODE == YOLO_PERSION){
+        _detect_result_group_t detect_result;
+
+        Rkyolo.rknn_img_inference(frame_cam, &detect_result);
+        
+        Rkyolo.yolo_draw_results_match(frame_cam, frame_cam, &detect_result, "person");
+    }
+
+    if(VISION_MODE == YOLO_PHONE){
+        _detect_result_group_t detect_result;
+
+        Rkyolo.rknn_img_inference(frame_cam, &detect_result);
+        
+        Rkyolo.yolo_draw_results_match(frame_cam, frame_cam, &detect_result, "cell_phone");
+    }
+
+    if(VISION_MODE == YOLO_BALLS){
+        _detect_result_group_t detect_result;
+
+        Rkyolo.rknn_img_inference(frame_cam, &detect_result);
+        
+        Rkyolo.yolo_draw_results_match(frame_cam, frame_cam, &detect_result, "sports_ball");
+        Rkyolo.yolo_draw_results_match(frame_cam, frame_cam, &detect_result, "orange");
+    }
+
+    /*录像*/
     if(Fpv_serial.data.CrsfChannels[6] == 1792){
         yolo_video_record.write(frame_cam);
     }
 
-    // cv::imshow("yolo_cam", frame_cam);
-    //Cam_streaming.write(frame_cam);
+    cv::imshow("yolo_cam", frame_cam);
 
     if(cv::waitKey(1) == 'q') break;
     }

@@ -55,7 +55,8 @@ public:
     char *label_name_txt_path;       //标签文件路径
     int error_ret;                   //错误信息
 
-
+    std::string trim(const std::string& str);
+    int compareStrings(const char* str1, const char* str2);
     unsigned char *load_data(FILE *fp, size_t ofst, size_t sz);
     unsigned char *load_model(char *filename, int *model_size);
     void dump_tensor_attr(rknn_tensor_attr *attr);
@@ -63,6 +64,8 @@ public:
     int rknn_img_inference(cv::Mat frame, _detect_result_group_t *results);    //图像推理
     int yolo_draw_results(cv::Mat frame_in, cv::Mat& frame_labbed,
                                  _detect_result_group_t *results);     //画出识别结果
+    int yolo_draw_results_match(cv::Mat frame_in, cv::Mat& frame_labbed,
+                                      _detect_result_group_t *results, const char* target); //画特定的物体
     int yolo_print_results(_detect_result_group_t *results);     //打印出识别结果
 
     RkNPU(/* args */);
