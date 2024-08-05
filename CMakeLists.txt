@@ -51,6 +51,6 @@ target_link_libraries(Fpv_master
     ${OpenCV_LIBS}
     ${RKNN_RT_LIB}
     ${MPP_LIBS}
-    ${CMAKE_SOURCE_DIR}/library/src-serial/build/libserial.a
+    ${CMAKE_SOURCE_DIR}/library/src-serial/libserial.a
     ${GST_LIBRARIES}
 )
