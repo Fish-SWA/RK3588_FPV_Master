@@ -34,6 +34,9 @@ include_directories(library/rknpu/librknn_api/rga/include)
 # Serial
 include_directories(${CMAKE_SOURCE_DIR}/library/src-serial/include/serial)
 
+# json
+include_directories(${CMAKE_SOURCE_DIR}/library)
+
 # gst
 find_package(PkgConfig)
 pkg_check_modules(GST REQUIRED gstreamer-1.0 gstreamer-app-1.0)
@@ -46,8 +49,23 @@ add_executable(Fpv_master
         ${yolo_process}
         )
 
+
 # Link Opencv & RknnAPI & 
 target_link_libraries(Fpv_master 
+    ${OpenCV_LIBS}
+    ${RKNN_RT_LIB}
+    ${MPP_LIBS}
+    ${CMAKE_SOURCE_DIR}/library/src-serial/libserial.a
+    ${GST_LIBRARIES}
+)
+
+# Cam calibration tools
+add_executable(Cam_calibrate 
+        ${CMAKE_SOURCE_DIR}/tools/camera_cali.cpp
+        )
+
+
+target_link_libraries(Cam_calibrate 
     ${OpenCV_LIBS}
     ${RKNN_RT_LIB}
     ${MPP_LIBS}

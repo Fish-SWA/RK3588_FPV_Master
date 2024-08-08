@@ -3,4 +3,11 @@ cd build
 cmake ..
 make -j4
 
-./Fpv_master
+if [ "$1" == "-calib" ]; then
+    echo "calib task"
+    ./Cam_calibrate
+else
+    echo "main task"
+    ./Fpv_master
+fi
+# ./Fpv_master

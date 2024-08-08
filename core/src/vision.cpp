@@ -30,6 +30,7 @@ int BinoCamera::open()
     Cam_L.set(cv::CAP_PROP_FRAME_HEIGHT, CAM_FRAME_HEIGHT);
     Cam_L.set(cv::CAP_PROP_FRAME_WIDTH, CAM_FRAME_WIDTH);
     Cam_L.set(cv::CAP_PROP_BRIGHTNESS, CAM_BRIGHTNESS-5);
+    // Cam_L.set(cv::CAP_TE<, CAM_BRIGHTNESS-5);
     Cam_L.set(cv::CAP_PROP_TEMPERATURE, 7000);
 
     Cam_R.set(cv::CAP_PROP_FOURCC ,cv::VideoWriter::fourcc('M', 'J', 'P', 'G') );
@@ -135,52 +136,48 @@ int BinoCamera::monitor_task()
                             "Cam_L", frame_show[0]));
     std::thread Cam_R_view(std::bind(&BinoCamera::monitor_frame, this, 
                             "Cam_R", frame_show[1]));
-                            
+
+    /*creat ORB detector*/ 
+    cv::Ptr<cv::ORB> orb = cv::ORB::create(2000);
+    std::vector<cv::KeyPoint> tracking_point_L;
+
+    /*gray mat*/
+    cv::UMat Frame_raw_L_gray;
+
 
     while(1)
     {
-        time_p1 = get_time();
-
         /*读取帧*/
-        Cam_L.read(Frame_raw_L);
-        Cam_R.read(Frame_raw_R);
-
-        time_p2 = get_time();
+        Cam_L.read(Frame_raw_R);
+        Cam_R.read(Frame_raw_L);
 
         /*识别*/
-        detect_balls(Frame_raw_L, frame_labeled[0], frame_binary[0], balls[0]);
-        detect_balls(Frame_raw_R, frame_labeled[1], frame_binary[1], balls[1]);
+        cv::cvtColor(Frame_raw_L, Frame_raw_L_gray, cv::COLOR_RGB2GRAY);
+        orb->detect(Frame_raw_L_gray, tracking_point_L);
 
-        time_p3 = get_time();
+        //draw all key points
+        for(int i=0; i < tracking_point_L.size(); i++)
+        {
+            if(tracking_point_L[i].response > 0.0005){
+                cv::circle(Frame_raw_L, tracking_point_L[i].pt, 2, cv::Scalar(0, 255, 0), 2);
+            }else{
+                cv::circle(Frame_raw_L, tracking_point_L[i].pt, 2, cv::Scalar(255, 0, 0), 2);
+            }
+        }
 
-        img_lock.lock();
-        frame_labeled[0].copyTo(frame_show[0]);
-        frame_labeled[1].copyTo(frame_show[1]);
-        img_lock.unlock();
+        std::cout << tracking_point_L.size() << std::endl;
+        std::cout << tracking_point_L[0].response << std::endl;
+        // std::cout << tracking_point_L[0] std::endl;
+        // cv::drawKeypoints(Frame_raw_L, tracking_point_L, Frame_raw_L, cv::Scalar::all(-1), cv::DrawMatchesFlags::DRAW_RICH_KEYPOINTS);
 
         /*显示*/
         if(!Thread_monitor){
-        cv::imshow("Cam_L", frame_labeled[0]);
-        cv::imshow("Cam_R", frame_labeled[1]);
+        cv::imshow("Cam_L", Frame_raw_L);
+        cv::imshow("Cam_R", Frame_raw_R);
         }
-
-        time_p4 = get_time();
 
         if(!Thread_monitor){
         if(cv::waitKey(1) == 'q') break;
-        }
-
-        time_p5 = get_time();
-
-        if(balls[0].size() > 0 && balls[1].size() > 0){
-            printf("centerL: %d, %d\t", balls[0][0].x, balls[0][0].y);
-            printf("centerR: %d, %d\t", balls[1][0].x, balls[1][0].y);
-            printf("time_use:%dms + %dms + %dms -> %dms | %dms\n", 
-                            time_p2 - time_p1,      //读取读取帧耗时
-                            time_p3 - time_p2,      //识别耗时
-                            time_p4 - time_p3,      //显示耗时
-                            time_p4 - time_p1,      //总耗时
-                            time_p5 - time_p4);     //waitkey等待时间
         }
 
 

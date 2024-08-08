@@ -19,12 +19,12 @@ private:
     cv::Scalar Filter_HSV_HIGH = cv::Scalar(110, 255, 255);  //(170, 255, 255);
 
     int Filter_Debug = 0;
-    int Thread_monitor = 1; //1监看放到独立线程（可能导致监看卡顿）， 0监看与识别在一个线程
+    int Thread_monitor = 0; //1监看放到独立线程（可能导致监看卡顿）， 0监看与识别在一个线程
     
  
     /*摄像机参数*/
-    int CAM_FRAME_HEIGHT = 480;
-    int CAM_FRAME_WIDTH = 640;
+    int CAM_FRAME_HEIGHT = 720;
+    int CAM_FRAME_WIDTH = 1280;
     int CAM_FRAME_FPS = 60;
     int CAM_BRIGHTNESS = 5;
 
