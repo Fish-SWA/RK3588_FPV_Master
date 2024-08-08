@@ -4,9 +4,19 @@
 // file
 #include "nlohmann/json.hpp"
 #include <fstream>
+//thread
+#include <thread>
 
-#define IMG_COUNT 10
+
+#define Sleep_ms(x) std::this_thread::sleep_for (std::chrono::milliseconds(x));
+
+#define IMG_COUNT 60
 #define SAMPLE_PERIOD 5
+
+void writeRTEF(cv::Mat& R, cv::Mat& T,
+                cv::Mat& E, cv::Mat& F,
+                const std::string& filename);
+
 
 typedef struct
 {
@@ -40,8 +50,8 @@ public:
     void init(){
         /*************** cam settings ****************/
         camrea.cam.open(camrea.cam_id, cv::CAP_V4L2);
-        camrea.cam.set(cv::CAP_PROP_FRAME_WIDTH, 1280);
-        camrea.cam.set(cv::CAP_PROP_FRAME_HEIGHT, 720);
+        camrea.cam.set(cv::CAP_PROP_FRAME_WIDTH, 800);
+        camrea.cam.set(cv::CAP_PROP_FRAME_HEIGHT, 600);
         camrea.cam.set(cv::CAP_PROP_FPS, 60);
         camrea.cam.set(cv::CAP_PROP_TEMPERATURE, 5000);
         // std::cout << cam.get(cv::CAP_PROP_EXPOSURE) << std::endl;
@@ -58,8 +68,12 @@ public:
         }
     }
 
-    int check(){
+    void get(){
         camrea.cam.read(camrea.frame);
+    }
+
+    int check(){
+        
        //get calibration corners
         cv::cvtColor(camrea.frame, camrea.frame_gray, cv::COLOR_BGR2GRAY);
 
@@ -183,6 +197,8 @@ int main()
         
         if(cv::waitKey(1) == 'q') break;
 
+        cam_l.get();
+        cam_r.get();
         return_num_l = cam_l.check();
         return_num_r = cam_r.check();
         if(return_num_l == -1 || return_num_r == -1){
@@ -206,6 +222,15 @@ int main()
 
     }
 
+    // // show frames
+    // for(int i=0; i<IMG_COUNT; i++){
+    //     cv::imshow("camL", cam_l.camrea.frame_calib[i]);
+    //     cv::imshow("camR", cam_r.camrea.frame_calib[i]);
+    //     Sleep_ms(1000);
+    //     if(cv::waitKey(1) == 'q') break;
+
+    // }
+
     // 执行相机标定
     cam_l.calculate();
     cam_r.calculate();
@@ -213,9 +238,63 @@ int main()
 
     // 输出相机参数
     cam_l.save("/home/fish/GKD/RK3588_FPV_Master/settings/cameraL_paramets.json");    
-    cam_r.save("/home/fish/GKD/RK3588_FPV_Master/settings/cameraR_paramets.json");    
+    cam_r.save("/home/fish/GKD/RK3588_FPV_Master/settings/cameraR_paramets.json");   
 
-
+    // stereoRectify
+    cv::Mat R, T, E, F;
+    cv::stereoCalibrate(cam_l.objectPoints, cam_l.imagePoints, cam_r.imagePoints,
+                    cam_l.mtx, cam_l.dist, cam_r.mtx, cam_r.dist,
+                    cv::Size(cam_l.camrea.frame_gray.rows, cam_l.camrea.frame_gray.cols),
+                    R, T, E, F);
+    printf("-------------------------------\n");
+    std::cout << R << "--R\n" << T << "--T\n" << E << "--E\n" << F << "--F\n" <<std::endl;
+    writeRTEF(R, T, E, F, "/home/fish/GKD/RK3588_FPV_Master/settings/cameraRL_RTEF.json");
     return 0;
 }
 
+void writeRTEF(cv::Mat& R, cv::Mat& T,
+                cv::Mat& E, cv::Mat& F,
+                const std::string& filename) {
+    using json = nlohmann::json;
+    json j;
+
+    // R
+    for (int i = 0; i < R.rows; ++i) {
+        for (int k = 0; k < R.cols; ++k) {
+            j["R"][i][k] = R.at<double>(i, k);
+        }
+    }
+
+    // T
+    for (int i = 0; i < T.rows; ++i) {
+        for (int k = 0; k < T.cols; ++k) {
+            j["T"][i][k] = T.at<double>(i, k);
+        }
+    }
+
+    // 保存本质矩阵
+    for (int i = 0; i < E.rows; ++i) {
+        for (int k = 0; k < E.cols; ++k) {
+            j["E"][i][k] = E.at<double>(i, k);
+        }
+    }
+
+    // 保存基本矩阵
+    for (int i = 0; i < F.rows; ++i) {
+        for (int k = 0; k < F.cols; ++k) {
+            j["F"][i][k] = F.at<double>(i, k);
+        }
+    }
+
+    // 写入到文件
+    std::ofstream file(filename);
+    if (!file) {
+        std::cerr << "Error opening file for writing: " << filename << std::endl;
+        return;
+    }
+    file << j.dump(4);  // 格式化输出，缩进为4
+    if (file.fail()) {
+        std::cerr << "Error writing to file: " << filename << std::endl;
+    }
+    file.close();
+}
