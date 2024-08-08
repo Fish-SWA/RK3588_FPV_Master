@@ -58,7 +58,7 @@ public:
         }
     }
 
-    int image_add(){
+    int check(){
         camrea.cam.read(camrea.frame);
        //get calibration corners
         cv::cvtColor(camrea.frame, camrea.frame_gray, cv::COLOR_BGR2GRAY);
@@ -68,14 +68,16 @@ public:
         }
         //draw corners
         cv::drawChessboardCorners(camrea.frame, boardSize, corners, true);
+        return 0;
+    }
 
+    int image_add(){
         /*Get sample images for calibration*/
         camrea.sample_period_count ++;
         if(camrea.sample_period_count >= SAMPLE_PERIOD){
             cv::cornerSubPix(camrea.frame_gray, corners, cv::Size(11, 11), cv::Size(-1, -1),
                 cv::TermCriteria(cv::TermCriteria::EPS + cv::TermCriteria::COUNT, 30, 0.1));
             imagePoints.push_back(corners);
-            std::cout << corners <<std::endl;
             objectPoints.push_back(objP);
 
             //get calibration imgs
@@ -93,10 +95,6 @@ public:
 
     void calculate(){
         // 执行相机标定
-        for(int i=0; i<objectPoints.size(); i++){
-            std::cout << objectPoints[i] << std::endl;
-        }
-        printf("%d, %d, %d\n", objectPoints.size(), imagePoints.size(), camrea.frame_gray.size());
         cv::calibrateCamera(objectPoints, imagePoints, cv::Size(camrea.frame_gray.rows, camrea.frame_gray.cols), 
                             mtx, dist, rvecs, tvecs);
     }
@@ -165,32 +163,58 @@ public:
     // ~camrea_calibtation();
 };
 
-camrea_calibtation cam_l;
-int return_num = 0;
+camrea_calibtation cam_l, cam_r;
+int return_num_l = 0;
+int return_num_r = 0;
+
 
 int main()
 {
     
     cam_l.camrea.cam_id = 0;
     cam_l.init();
+    cam_r.camrea.cam_id = 2;
+    cam_r.init();
 
     while(1)
     {
-        cv::imshow("cam", cam_l.camrea.frame);
+        cv::imshow("camL", cam_l.camrea.frame);
+        cv::imshow("camR", cam_r.camrea.frame);
         
         if(cv::waitKey(1) == 'q') break;
 
-        return_num = cam_l.image_add();
-        if(return_num == -1) continue;
-        else if(return_num == 1) break;
+        return_num_l = cam_l.check();
+        return_num_r = cam_r.check();
+        if(return_num_l == -1 || return_num_r == -1){
+            continue;
+        }
+        
+        return_num_l = cam_l.image_add();
+        return_num_r = cam_r.image_add();
+        if((return_num_l == 1) || (return_num_r == 1)){
+            break;
+        }
+
+        // return_num = cam_l.check();
+        // if(return_num == -1) continue;
+        // else if(return_num == 1) break;
+
+        // return_num = cam_r.check();
+        // if(return_num == -1) continue;
+        // else if(return_num == 1) break;
+
 
     }
 
     // 执行相机标定
     cam_l.calculate();
+    cam_r.calculate();
+
 
     // 输出相机参数
-    cam_l.save("/home/fish/GKD/RK3588_FPV_Master/settings/camera_paramets.json");    
+    cam_l.save("/home/fish/GKD/RK3588_FPV_Master/settings/cameraL_paramets.json");    
+    cam_r.save("/home/fish/GKD/RK3588_FPV_Master/settings/cameraR_paramets.json");    
+
 
     return 0;
 }
