@@ -16,8 +16,8 @@
 
 
 /*视频推流相关*/
-#include <gst/gst.h>
-#include <gst/app/gstappsink.h>
+// #include <gst/gst.h>
+// #include <gst/app/gstappsink.h>
 
 /*文件写入*/
 #include <fstream>
@@ -76,7 +76,7 @@ int main()
 /*初始化OpenCL*/
 void Opencl_init()
 {
-    cv::ocl::setUseOpenCL(false);
+    cv::ocl::setUseOpenCL(true);
     std::cout << cv::ocl::haveOpenCL() <<std::endl;
 
     cv::ocl::Context context;

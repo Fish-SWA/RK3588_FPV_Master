@@ -6,6 +6,11 @@
 #include <fstream>
 //thread
 #include <thread>
+//PCL
+#include <pcl/visualization/pcl_visualizer.h>
+#include <pcl/io/pcd_io.h>
+#include <pcl/point_types.h>
+#include <pcl/point_cloud.h>
 
 using json = nlohmann::json;
 
@@ -163,6 +168,9 @@ int main()
     sgbm->setDisp12MaxDiff(1);                      //左右一致性检查最大允许差异
     sgbm->setMode(cv::StereoSGBM::MODE_SGBM_3WAY);
 
+    //PCL点云数据
+    pcl::PointCloud<pcl::PointXYZ>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZ>);
+
     cv::Mat disparity;
 
     while (1)
@@ -223,10 +231,33 @@ int main()
         }
         printf("------------------------------------\n");
 
+        /*****************点云可视化********************/
+        // 填充点云数据
+        for (int i = 0; i < points3D.rows; i++) {
+            for (int j = 0; j < points3D.cols; j++) {
+                cv::Vec3f point = points3D.at<cv::Vec3f>(i, j);
+                // 确保点是有效的
+                if (std::isfinite(point[2])) {
+                    cloud->push_back(pcl::PointXYZ(point[0], point[1], point[2]));
+                }
+            }
+        }
+        // 可视化
+        pcl::visualization::PCLVisualizer::Ptr viewer(new pcl::visualization::PCLVisualizer("3D Viewer"));
+        viewer->setBackgroundColor(0, 0, 0);
+        pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> single_color(cloud, 0, 255, 0);  // 绿色
+        viewer->addPointCloud<pcl::PointXYZ>(cloud, single_color, "sample cloud");
+        viewer->addCoordinateSystem(1.0);
+        viewer->initCameraParameters();
 
         cv::imshow("camL", camreas.cam_l.frame);
         cv::imshow("camR", camreas.cam_r.frame);
         cv::imshow("depth", falseColorsMap);
+
+        /*****暂时先这样******/
+        while (!viewer->wasStopped()) {
+            viewer->spinOnce(100);
+        }
 
         if(cv::waitKey(1) == 'q') break;
     }

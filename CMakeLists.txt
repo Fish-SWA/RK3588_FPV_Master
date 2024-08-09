@@ -1,10 +1,10 @@
-# cmake 最低版本需求
+# cmake ???????????
 cmake_minimum_required(VERSION 3.13)
 
-# 工程名称
+# ??????
 project(Fpv_master)
 
-# 设置
+# ???
 set(CMAKE_CXX_STANDARD 11)
 include_directories(${PROJECT_SOURCE_DIR}/core/inc)
 
@@ -37,13 +37,20 @@ include_directories(${CMAKE_SOURCE_DIR}/library/src-serial/include/serial)
 # json
 include_directories(${CMAKE_SOURCE_DIR}/library)
 
+# PCL
+find_package(PCL 1.8 REQUIRED COMPONENTS common io visualization)  # 添加 visualization 组件
+include_directories(${PCL_INCLUDE_DIRS})
+link_directories(${PCL_LIBRARY_DIRS})
+add_definitions(${PCL_DEFINITIONS})
+
+
 # gst
-find_package(PkgConfig)
-pkg_check_modules(GST REQUIRED gstreamer-1.0 gstreamer-app-1.0)
-include_directories(${GST_INCLUDE_DIRS})
+# find_package(PkgConfig)
+# pkg_check_modules(GST REQUIRED gstreamer-1.0 gstreamer-app-1.0)
+# include_directories(${GST_INCLUDE_DIRS})
 
 
-# 编译源码生成目标
+# ?????????????
 add_executable(Fpv_master
         ${src_file}
         ${yolo_process}
@@ -85,4 +92,6 @@ target_link_libraries(deep_map
     ${MPP_LIBS}
     ${CMAKE_SOURCE_DIR}/library/src-serial/libserial.a
     ${GST_LIBRARIES}
+    ${PCL_LIBRARIES}
+    ${PCL_VISUALIZATION_LIBRARIES}
 )
