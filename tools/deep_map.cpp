@@ -144,6 +144,9 @@ int main()
     cv::Mat imgL_rect, imgR_rect;
     cv::Mat depth;
 
+    // 点云数据
+    cv::Mat points3D;
+
     // 创建StereoSGBM对象
     int minDisparity = 16;              //视差搜索起点
     int numDisparities = 208 -16;       //视差搜索范围 必须是16的倍数
@@ -179,10 +182,46 @@ int main()
         // 转换为深度图
         cv::Mat depth;
         cv::reprojectImageTo3D(disparity, depth, Q, true);
-
+        // 增加伪色
         cv::Mat falseColorsMap;
         cv::normalize(disparity, falseColorsMap, 0, 255, cv::NORM_MINMAX, CV_8UC1);
         cv::applyColorMap(falseColorsMap, falseColorsMap, cv::COLORMAP_JET);
+
+        // 转换为点云
+        cv::reprojectImageTo3D(disparity, points3D, Q, true);
+        std::cout << points3D.size() << std::endl;
+        //输出部分点云
+        //输出区域
+        int x_start = 300, y_start = 250;
+        int width = 50, height = 50;
+
+        //绘制输出区域到深度图上
+        cv::rectangle(falseColorsMap, cv::Point(x_start, y_start), cv::Point(x_start + width, y_start + height), cv::Scalar(0, 255, 0), 2);
+
+        // 输出部分点云
+        for (int i = y_start; i < y_start + height; i++) {
+            for (int j = x_start; j < x_start + width; j++) {
+                cv::Point3f point = points3D.at<cv::Point3f>(i, j);
+                if(std::isfinite(point.z) && point.z < 5000){  // 筛选有效Z值
+                    std::cout << "3D Point(" << i << ", " << j << "): " << point << std::endl;
+                }
+            }
+        }
+        // 设置测距无效部分的伪色图为灰色
+        cv::Scalar grayColor(255, 255, 255); // 灰色
+        // 设置无效区域为灰色
+        for (int i = 0; i < points3D.rows; i++) {
+            for (int j = 0; j < points3D.cols; j++) {
+                cv::Point3f point = points3D.at<cv::Point3f>(i, j);
+                if (point.z > 5000) {
+                    // falseColorsMap.at<cv::Vec3b>(i, j) 
+                    falseColorsMap.data[i, j, 0] = grayColor[0];
+                    falseColorsMap.data[i, j, 1] = grayColor[1];
+                    falseColorsMap.data[i, j, 2] = grayColor[2];
+                }
+            }
+        }
+        printf("------------------------------------\n");
 
 
         cv::imshow("camL", camreas.cam_l.frame);
