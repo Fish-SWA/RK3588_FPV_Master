@@ -59,13 +59,27 @@ target_link_libraries(Fpv_master
     ${GST_LIBRARIES}
 )
 
-# Cam calibration tools
+# --------------Cam calibration tools
 add_executable(Cam_calibrate 
         ${CMAKE_SOURCE_DIR}/tools/camera_cali.cpp
         )
 
 
 target_link_libraries(Cam_calibrate 
+    ${OpenCV_LIBS}
+    ${RKNN_RT_LIB}
+    ${MPP_LIBS}
+    ${CMAKE_SOURCE_DIR}/library/src-serial/libserial.a
+    ${GST_LIBRARIES}
+)
+
+# --------------Stero map
+add_executable(deep_map 
+        ${CMAKE_SOURCE_DIR}/tools/deep_map.cpp
+        )
+
+
+target_link_libraries(deep_map 
     ${OpenCV_LIBS}
     ${RKNN_RT_LIB}
     ${MPP_LIBS}
