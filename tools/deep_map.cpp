@@ -11,13 +11,23 @@
 #include <pcl/io/pcd_io.h>
 #include <pcl/point_types.h>
 #include <pcl/point_cloud.h>
+//thread
+#include "thread"
+
 
 using json = nlohmann::json;
+
+// 可视化 Point Cloud
+pcl::visualization::PCLVisualizer::Ptr viewer(new pcl::visualization::PCLVisualizer("Point Cloud"));
+//PCL点云数据
+pcl::PointCloud<pcl::PointXYZ>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZ>);
+std::mutex cloud_lock; 
 
 void readCameraParameters(const std::string& filename, cv::Mat& cameraMatrix, cv::Mat& distCoeffs);
 void readRTEF(const std::string& filename,
                                   cv::Mat& R, cv::Mat& T,
                                   cv::Mat& E, cv::Mat& F);
+void point_cloud_visualization_task();
 
 // 从JSON文件读取cameraMatrix和distCoeffs
 void readCameraParameters(const std::string& filename, cv::Mat& cameraMatrix, cv::Mat& distCoeffs) {
@@ -117,7 +127,7 @@ int main()
     std::cout << camreas.T << "----T\n" << camreas.cam_l.mtx << std::endl; 
 
     //cam_l init
-    camreas.cam_l.cam.open(0, cv::CAP_V4L2);
+    camreas.cam_l.cam.open(2, cv::CAP_V4L2);
     camreas.cam_l.cam.set(cv::CAP_PROP_FRAME_WIDTH, 800);
     camreas.cam_l.cam.set(cv::CAP_PROP_FRAME_HEIGHT, 600);
     camreas.cam_l.cam.set(cv::CAP_PROP_FPS, 60);
@@ -127,7 +137,7 @@ int main()
     std::cout << camreas.cam_l.cam.get(cv::CAP_PROP_AUTO_WB) << std::endl;
     camreas.cam_l.cam.read(camreas.cam_l.frame);
     //cam_r init
-    camreas.cam_r.cam.open(2, cv::CAP_V4L2);
+    camreas.cam_r.cam.open(0, cv::CAP_V4L2);
     camreas.cam_r.cam.set(cv::CAP_PROP_FRAME_WIDTH, 800);
     camreas.cam_r.cam.set(cv::CAP_PROP_FRAME_HEIGHT, 600);
     camreas.cam_r.cam.set(cv::CAP_PROP_FPS, 60);
@@ -168,10 +178,17 @@ int main()
     sgbm->setDisp12MaxDiff(1);                      //左右一致性检查最大允许差异
     sgbm->setMode(cv::StereoSGBM::MODE_SGBM_3WAY);
 
-    //PCL点云数据
-    pcl::PointCloud<pcl::PointXYZ>::Ptr cloud(new pcl::PointCloud<pcl::PointXYZ>);
-
     cv::Mat disparity;
+
+    // PCL visulizer
+    std::thread Cam_L_view(point_cloud_visualization_task);
+
+    /******初始化点云可视化******/
+    viewer->setBackgroundColor(0.2, 0.2, 0.2);
+    viewer->addCoordinateSystem(1.0);
+    viewer->initCameraParameters();
+    viewer->setCameraPosition(0, 0, -2, 0, -1, 0);  //视角
+    int point_cloud_init_flag = 0;
 
     while (1)
     {
@@ -232,32 +249,31 @@ int main()
         printf("------------------------------------\n");
 
         /*****************点云可视化********************/
+        cloud_lock.lock();
+        cloud->clear();
         // 填充点云数据
         for (int i = 0; i < points3D.rows; i++) {
             for (int j = 0; j < points3D.cols; j++) {
                 cv::Vec3f point = points3D.at<cv::Vec3f>(i, j);
-                // 确保点是有效的
-                if (std::isfinite(point[2])) {
+                // 确保点是有效的 & 存在深度信息
+                if (std::isfinite(point[2]) && point[2] < 5000) {
                     cloud->push_back(pcl::PointXYZ(point[0], point[1], point[2]));
                 }
             }
         }
-        // 可视化
-        pcl::visualization::PCLVisualizer::Ptr viewer(new pcl::visualization::PCLVisualizer("3D Viewer"));
-        viewer->setBackgroundColor(0, 0, 0);
-        pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> single_color(cloud, 0, 255, 0);  // 绿色
-        viewer->addPointCloud<pcl::PointXYZ>(cloud, single_color, "sample cloud");
-        viewer->addCoordinateSystem(1.0);
-        viewer->initCameraParameters();
+        cloud_lock.unlock();
+
+        //Only run once
+        if(point_cloud_init_flag == 0){
+            pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> single_color(cloud, 0, 255, 0);  // 绿色
+            viewer->addPointCloud<pcl::PointXYZ>(cloud, single_color, "cloud_frame");
+            point_cloud_init_flag = 1;
+        }
+
 
         cv::imshow("camL", camreas.cam_l.frame);
         cv::imshow("camR", camreas.cam_r.frame);
         cv::imshow("depth", falseColorsMap);
-
-        /*****暂时先这样******/
-        while (!viewer->wasStopped()) {
-            viewer->spinOnce(100);
-        }
 
         if(cv::waitKey(1) == 'q') break;
     }
@@ -267,42 +283,13 @@ int main()
     return 0;
 }
 
-
-// //Ref
-// int main() {
-//     // 假设你已经加载了所有必要的参数和图像
-//     cv::Mat imgL, imgR; // 左右图像
-//     cv::Mat cameraMatrixL, distL, cameraMatrixR, distR; // 相机内参数和畸变参数
-//     cv::Mat R, T, E, F; // 标定得到的外部参数
-
-//     cv::Size imageSize = imgL.size(); // 图像尺寸
-
-//     // 立体校正
-//     cv::Mat R1, R2, P1, P2, Q;
-//     cv::stereoRectify(cameraMatrixL, distL, cameraMatrixR, distR, imageSize, R, T, R1, R2, P1, P2, Q);
-
-//     // 获取映射
-//     cv::Mat map1L, map2L, map1R, map2R;
-//     cv::initUndistortRectifyMap(cameraMatrixL, distL, R1, P1, imageSize, CV_16SC2, map1L, map2L);
-//     cv::initUndistortRectifyMap(cameraMatrixR, distR, R2, P2, imageSize, CV_16SC2, map1R, map2R);
-
-//     // 应用映射
-//     cv::Mat imgL_rect, imgR_rect;
-//     cv::remap(imgL, imgL_rect, map1L, map2L, cv::INTER_LINEAR);
-//     cv::remap(imgR, imgR_rect, map1R, map2R, cv::INTER_LINEAR);
-
-//     // 创建StereoBM对象
-//     cv::Ptr<cv::StereoBM> stereoBM = cv::StereoBM::create(16, 9);
-//     cv::Mat disparity;
-//     stereoBM->compute(imgL_rect, imgR_rect, disparity);
-
-//     // 转换为深度图（视情况使用）
-//     cv::Mat depth;
-//     cv::reprojectImageTo3D(disparity, depth, Q, true);
-
-//     // 显示结果
-//     cv::imshow("Disparity", disparity);
-//     cv::waitKey(0);
-
-//     return 0;
-// }
+void point_cloud_visualization_task(){
+    while (!viewer->wasStopped()) {
+        cloud_lock.lock();
+        pcl::visualization::PointCloudColorHandlerCustom<pcl::PointXYZ> single_color(cloud, 0, 255, 0);  // 绿色
+        pcl::visualization::PointCloudColorHandlerGenericField<pcl::PointXYZ> z_color_handler(cloud, "z");
+        viewer->updatePointCloud<pcl::PointXYZ>(cloud, z_color_handler, "cloud_frame");
+        cloud_lock.unlock();
+        viewer->spinOnce(100);
+    }
+}
